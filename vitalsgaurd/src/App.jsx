@@ -6,6 +6,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import PatientDashboard from './components/PatientDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Simulator from './components/Simulator';
+import TargetedScan from './components/TargetedScan';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -110,6 +111,17 @@ export default function App() {
           element={
             user?.role === 'patient' ? (
               <Simulator />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/patient/scan"
+          element={
+            user?.role === 'patient' ? (
+              <TargetedScan />
             ) : (
               <Navigate to="/" replace />
             )
