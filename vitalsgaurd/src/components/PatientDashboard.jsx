@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import DigitalTwin from './DigitalTwin';
 import { patients } from '../data/mockVitals';
+
+const API_BASE = 'http://localhost:8000/api';
 
 export default function PatientDashboard({ userId, onLogout }) {
   const patient = patients.find((p) => p.id === userId) || patients[0];
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const latest = patient.vitals[patient.vitals.length - 1];
 
@@ -13,6 +20,26 @@ export default function PatientDashboard({ userId, onLogout }) {
     { title: 'SpO2', value: latest.spo2, unit: '%', icon: '💨', status: 'normal' },
     { title: 'Blood Pressure', value: '116/72', unit: 'mmHg', icon: '📊', status: 'normal' },
   ];
+
+  async function handleAnalyze() {
+    setAnalyzing(true);
+    setScanResult(null);
+    setError(null);
+    try {
+      const response = await axios.post(`${API_BASE}/analyze-vitals`, {
+        heart_rate: latest.hr,
+        spo2: latest.spo2,
+        temperature: latest.temp,
+        ecg_irregularity: (patient.id === 'p2' ? 0.72 : 0.0) // Demo specific
+      });
+      setScanResult(response.data);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      setError('Health analysis system is currently unavailable.');
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   const doctors = [
     { name: 'Dr. Sarah Chen', specialty: 'Cardiologist', date: '21 Aug', time: '10:00 AM' },
@@ -76,7 +103,16 @@ export default function PatientDashboard({ userId, onLogout }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Overall Health Status */}
             <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-              <h3 style={{ margin: '0 0 1.5rem 0', color: '#7C3AED' }}>📊 Overall Health Status</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0, color: '#7C3AED' }}>📊 Overall Health Status</h3>
+                <button 
+                  onClick={handleAnalyze} 
+                  disabled={analyzing}
+                  style={{ padding: '0.5rem 1rem', backgroundColor: analyzing ? '#d1d5db' : '#38bdf8', color: '#1e293b', border: 'none', borderRadius: '6px', cursor: analyzing ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                >
+                  {analyzing ? 'Scanning...' : 'Run AI Analysis ✨'}
+                </button>
+              </div>
               <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#7C3AED', marginBottom: '1rem' }}>89%</div>
               <p style={{ color: '#666', margin: 0 }}>Your overall health condition is <strong>Excellent</strong>. Keep up the good habits!</p>
               <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
@@ -110,6 +146,29 @@ export default function PatientDashboard({ userId, onLogout }) {
               </div>
               <div style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666' }}>Heart rate appears stable with normal variations</div>
             </div>
+
+            {/* AI Digital Twin Component */}
+            {(analyzing || scanResult || error) && (
+              <div style={{ backgroundColor: '#0f172a', borderRadius: '12px', padding: '0', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                {error && (
+                  <div style={{ padding: '1rem', background: '#7f1d1d', color: '#fecaca', textAlign: 'center' }}>⚠️ {error}</div>
+                )}
+                {!error && <DigitalTwin scanData={scanResult} isScanning={analyzing} />}
+                
+                {scanResult && !analyzing && (
+                  <div style={{ padding: '1.5rem', background: '#1e293b', borderTop: '1px solid #334155' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', color: '#38bdf8', fontSize: '1.1rem' }}>AI Diagnostic Consensus</h4>
+                    <p style={{ color: '#e2e8f0', margin: '0 0 1rem 0', fontStyle: 'italic' }}>"{scanResult.consensus}"</p>
+                    <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '8px' }}>
+                      <strong style={{ color: '#fbbf24', display: 'block', marginBottom: '0.5rem' }}>Recommended Actions:</strong>
+                      <ul style={{ color: '#cbd5e1', margin: 0, paddingLeft: '1.2rem' }}>
+                        {scanResult.actions.map((act, i) => <li key={i}>{act}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Section */}
