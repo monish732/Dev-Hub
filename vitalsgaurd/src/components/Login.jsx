@@ -1,249 +1,231 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../config/supabase';
+import axios from 'axios';
 
-// Define user roles by email
+// Maps known usernames to roles
 const userRoleMap = {
-  'admin1@gmail.com': 'admin',
-  'doctor1@gmail.com': 'doctor',
-  'doctor2@gmail.com': 'doctor',
-  'patient1@gmail.com': 'patient',
+  'admin1':   'admin',
+  'doctor1':  'doctor',
+  'doctor2':  'doctor',
+  'patient1': 'patient',
 };
 
 const demoAccounts = {
-  doctor: { email: 'doctor1@gmail.com', password: 'doctor1' },
-  patient: { email: 'patient1@gmail.com', password: 'patient1' },
-  admin: { email: 'admin1@gmail.com', password: 'admin1' },
+  doctor:  { username: 'doctor1',  password: 'doctor1' },
+  patient: { username: 'patient1', password: 'patient1' },
+  admin:   { username: 'admin1',   password: 'admin1' },
 };
 
+// ─── Shared input style ───────────────────────────────────────────────────────
+const inputStyle = {
+  width: '100%', padding: '10px', border: '1px solid #ddd',
+  borderRadius: '8px', marginBottom: '1.2rem', fontSize: '14px',
+  fontFamily: 'inherit', boxSizing: 'border-box',
+};
+
+// ─── Shared button style ──────────────────────────────────────────────────────
+const primaryBtn = (loading) => ({
+  width: '100%', padding: '10px', border: 'none', borderRadius: '8px',
+  color: 'white', background: '#7C3AED', fontWeight: '700',
+  cursor: loading ? 'not-allowed' : 'pointer', fontSize: '16px',
+  marginBottom: '20px', opacity: loading ? 0.7 : 1, transition: 'all 0.3s',
+});
+
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState('');
+  const [action, setAction]     = useState('login'); // 'login' | 'signup'
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('patient');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [assignedRole, setAssignedRole] = useState(null);
+  const [role, setRole]         = useState('patient');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [notice, setNotice]     = useState('');
   const navigate = useNavigate();
 
-  // Auto-assign role based on email
+  // Auto-detect role from well-known usernames
   useEffect(() => {
-    const lowerEmail = email.toLowerCase();
-    if (userRoleMap[lowerEmail]) {
-      setAssignedRole(userRoleMap[lowerEmail]);
-      setRole(userRoleMap[lowerEmail]);
-    } else {
-      setAssignedRole(null);
-      setRole('patient');
-    }
-  }, [email]);
+    const mapped = userRoleMap[username.toLowerCase()];
+    if (mapped) setRole(mapped);
+    else if (action === 'login') setRole('patient');
+  }, [username, action]);
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  async function handleAuthSubmit(e) {
+    if (e) e.preventDefault();
+    setError(''); setNotice(''); setLoading(true);
 
     try {
-      const lowerEmail = email.toLowerCase();
+      const lowerUsername = username.toLowerCase();
 
-      if (userRoleMap[lowerEmail]) {
-        const expectedRole = userRoleMap[lowerEmail];
-        if (role !== expectedRole) {
-          throw new Error(
-            `Email ${email} can only login as "${expectedRole.charAt(0).toUpperCase() + expectedRole.slice(1)}".`
-          );
-        }
+      // Ensure they don't try to sign up with a known demo account name
+      if (action === 'signup' && userRoleMap[lowerUsername]) {
+        throw new Error('This username is reserved. Please choose another.');
       }
 
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: lowerEmail,
+      // Call the Node.js Auth Server
+      const response = await axios.post('http://localhost:5003/auth', {
+        username: lowerUsername,
         password,
+        action,
       });
 
-      if (authError) throw authError;
-
-      if (data.user) {
-        const userRole = data.user.user_metadata?.role || role;
-        onLogin({ role: userRole, userId: data.user.id, email: data.user.email });
-        navigate(`/${userRole}`);
+      if (response.data.success) {
+        if (action === 'signup') {
+          // Instantly log them in after signup as requested
+          const userRole = role || 'patient';
+          onLogin({ role: userRole, userId: response.data.userId, username: lowerUsername });
+          navigate(`/${userRole}`);
+        } else {
+          // Login
+          const userRole = userRoleMap[lowerUsername] || 'patient';
+          onLogin({ role: userRole, userId: response.data.userId, username: lowerUsername });
+          navigate(`/${userRole}`);
+        }
+      } else {
+        throw new Error(response.data.message || 'Authentication failed.');
       }
     } catch (err) {
-      setError(err.message || 'Login failed.');
+      if (err.message === 'Network Error') {
+         setError('Cannot connect to Auth Server (Port 5003). Falling back to demo mode is possible.');
+      } else {
+         setError(err.response?.data?.message || err.message || 'Authentication failed.');
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleDemoLogin(demoRole) {
-    setEmail(demoAccounts[demoRole].email);
-    const pass = demoAccounts[demoRole].password;
-    setPassword(pass);
-    
-    setTimeout(() => {
-      const form = new FormData();
-      handleLogin({ 
-        preventDefault: () => {}, 
-        currentTarget: { email: { value: demoAccounts[demoRole].email }, password: { value: pass } } 
-      });
-    }, 0);
-  }
-
+  // ── Quick demo login (Bypasses server if it is offline) ────────────────────
   async function quickLogin(demoRole) {
-    setError('');
-    setLoading(true);
-    const account = demoAccounts[demoRole];
+    setError(''); setNotice(''); setLoading(true);
+    const acc = demoAccounts[demoRole];
+    setUsername(acc.username);
+    setPassword(acc.password);
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: account.email,
-        password: account.password,
+      const response = await axios.post('http://localhost:5003/auth', {
+        username: acc.username,
+        password: acc.password,
+        action: 'login',
       });
 
-      if (authError) {
-        // Offline / invalid Supabase creds — use local demo mode
-        if (authError.message === 'OFFLINE_MODE' || authError.status >= 400 || !data) {
-          const userRole = userRoleMap[account.email] || demoRole;
-          onLogin({ role: userRole, userId: `demo-${demoRole}`, email: account.email });
-          navigate(`/${userRole}`);
-          return;
-        }
-        throw authError;
+      if (response.data.success) {
+        onLogin({ role: demoRole, userId: response.data.userId, username: acc.username });
+        navigate(`/${demoRole}`);
+      } else {
+        throw new Error('Invalid demo credentials on server.');
       }
-
-      if (data?.user) {
-        const userRole = userRoleMap[account.email] || demoRole;
-        onLogin({ role: userRole, userId: data.user.id, email: data.user.email });
-        navigate(`/${userRole}`);
-      }
-    } catch (err) {
-      // Any failure → still allow demo mode so the app is always usable
-      const userRole = userRoleMap[account.email] || demoRole;
-      onLogin({ role: userRole, userId: `demo-${demoRole}`, email: account.email });
-      navigate(`/${userRole}`);
+    } catch {
+      // Offline fallback: log in locally anyway
+      onLogin({ role: demoRole, userId: `demo-${demoRole}`, username: acc.username });
+      navigate(`/${demoRole}`);
     } finally {
       setLoading(false);
     }
   }
 
+  const isSignUp = action === 'signup';
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Left Side - Purple Gradient */}
+      {/* ── Left Panel ──────────────────────────── */}
       <div style={{
-        width: '40%',
-        background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)',
-        color: 'white',
-        padding: '60px 40px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
+        width: '40%', background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)',
+        color: 'white', padding: '60px 40px', display: 'flex',
+        flexDirection: 'column', justifyContent: 'space-between',
       }}>
         <div>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>💊</div>
-          <h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 'bold' }}>VitalsGuard</h1>
-          <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>CLINICAL HEALTH AI</p>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>💊</div>
+          <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 'bold' }}>VitalsGuard</h1>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>CLINICAL HEALTH AI</p>
         </div>
 
         <div>
-          <h2 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '20px', lineHeight: '1.2' }}>
+          <h2 style={{ fontSize: 32, fontWeight: 'bold', marginBottom: 20, lineHeight: 1.2 }}>
             Smarter health monitoring for every patient.
           </h2>
-          <p style={{ fontSize: '14px', opacity: 0.9, marginBottom: '40px' }}>
+          <p style={{ fontSize: 14, opacity: 0.9, marginBottom: 40 }}>
             AI-powered vital sign tracking, real-time alerts, and clinical-grade management — all in one platform.
           </p>
-
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            <li style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', fontSize: '14px' }}>
-              <span style={{ fontSize: '20px' }}>⚡</span>
-              <span>AI-powered real-time vitals monitoring</span>
-            </li>
-            <li style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', fontSize: '14px' }}>
-              <span style={{ fontSize: '20px' }}>🏥</span>
-              <span>Clinical-grade health protocols built-in</span>
-            </li>
-            <li style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px' }}>
-              <span style={{ fontSize: '20px' }}>🔐</span>
-              <span>Role-based access for your entire team</span>
-            </li>
+            {[
+              ['⚡', 'AI-powered real-time vitals monitoring'],
+              ['🏥', 'Clinical-grade health protocols built-in'],
+              ['🔐', 'Role-based access for your entire team'],
+            ].map(([icon, text]) => (
+              <li key={text} style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 20, fontSize: 14 }}>
+                <span style={{ fontSize: 20 }}>{icon}</span>
+                <span>{text}</span>
+              </li>
+            ))}
           </ul>
         </div>
 
-        <p style={{ fontSize: '12px', opacity: 0.8, margin: 0 }}>© 2026 VitalsGuard. All rights reserved.</p>
+        <p style={{ fontSize: 12, opacity: 0.8, margin: 0 }}>© 2026 VitalsGuard. All rights reserved.</p>
       </div>
 
-      {/* Right Side - Login Form */}
+      {/* ── Right Panel ──────────────────────────── */}
       <div style={{
-        width: '60%',
-        padding: '60px 40px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
+        width: '60%', padding: '60px 40px', display: 'flex',
+        flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
         background: '#f5f3ff',
       }}>
-        <div style={{ width: 'min(380px, 100%)' }}>
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <div style={{ width: '50px', height: '50px', background: '#7C3AED', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 16px' }}>
+        <div style={{ width: 'min(400px, 100%)' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ width: 50, height: 50, background: '#7C3AED', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 16px' }}>
               💊
             </div>
-            <h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 'bold', color: '#1f2937' }}>
-              Welcome Back
+            <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 'bold', color: '#1f2937' }}>
+              {isSignUp ? 'Create Account' : 'Welcome Back'}
             </h1>
-            <p style={{ margin: 0, fontSize: '14px', color: '#999' }}>
-              Sign in to VitalsGuard — Continue your journey
+            <p style={{ margin: 0, fontSize: 14, color: '#999' }}>
+              {isSignUp ? 'Sign up for VitalsGuard' : 'Sign in to VitalsGuard — Continue your journey'}
             </p>
           </div>
 
+          {/* Error / Notice banners */}
           {error && (
-            <div style={{
-              color: '#dc2626',
-              marginBottom: '1rem',
-              padding: '12px',
-              backgroundColor: '#fee2e2',
-              borderRadius: '8px',
-              fontSize: '13px',
-              border: '1px solid #fecaca'
-            }}>
+            <div style={{ color: '#dc2626', marginBottom: '1rem', padding: 12, backgroundColor: '#fee2e2', borderRadius: 8, fontSize: 13, border: '1px solid #fecaca' }}>
               {error}
             </div>
           )}
-
-          {assignedRole && !isSignUp && (
-            <div style={{
-              color: '#059669',
-              marginBottom: '1rem',
-              padding: '12px',
-              backgroundColor: '#ecfdf5',
-              borderRadius: '8px',
-              fontSize: '13px',
-              border: '1px solid #a7f3d0'
-            }}>
-              ✓ Role: <strong>{assignedRole.charAt(0).toUpperCase() + assignedRole.slice(1)}</strong>
+          {notice && (
+            <div style={{ color: '#065f46', marginBottom: '1rem', padding: 12, backgroundColor: '#d1fae5', borderRadius: 8, fontSize: 13, border: '1px solid #a7f3d0' }}>
+              {notice}
             </div>
           )}
 
-          <form onSubmit={handleLogin}>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '14px' }}>
-              Your email
+          {/* Auth Form */}
+          <form onSubmit={handleAuthSubmit}>
+            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 600, fontSize: 14 }}>
+              Username
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="name@example.com"
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-                marginBottom: '1.2rem',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-              }}
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder={isSignUp ? "Choose a username" : "Enter your username"}
+              style={inputStyle}
               required
             />
 
-            <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '14px' }}>
+            {isSignUp && (
+              <>
+                <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 600, fontSize: 14 }}>
+                  Role
+                </label>
+                <select
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="patient">Patient</option>
+                  <option value="doctor">Doctor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </>
+            )}
+
+            <label style={{ display: 'block', marginBottom: 8, color: '#333', fontWeight: 600, fontSize: 14 }}>
               Password
             </label>
             <input
@@ -251,106 +233,63 @@ export default function Login({ onLogin }) {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-                marginBottom: '1.5rem',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-              }}
+              style={{ ...inputStyle, marginBottom: '1.5rem' }}
               required
             />
 
             <button
               type="submit"
               disabled={loading}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: 'none',
-                borderRadius: '8px',
-                color: 'white',
-                background: '#7C3AED',
-                fontWeight: '700',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '16px',
-                marginBottom: '20px',
-                opacity: loading ? 0.7 : 1,
-                transition: 'all 0.3s',
-              }}
+              style={primaryBtn(loading)}
               onMouseEnter={e => !loading && (e.target.style.background = '#6D28D9')}
               onMouseLeave={e => (e.target.style.background = '#7C3AED')}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>
           </form>
 
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>Demo accounts</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-              <button
-                onClick={() => quickLogin('doctor')}
-                disabled={loading}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  color: '#7C3AED',
-                  fontWeight: '500',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={e => !loading && (e.target.style.borderColor = '#7C3AED', e.target.style.background = '#f5f3ff')}
-                onMouseLeave={e => (e.target.style.borderColor = '#e5e7eb', e.target.style.background = '#fff')}
-              >
-                👨‍⚕️ Doctor
-              </button>
-              <button
-                onClick={() => quickLogin('patient')}
-                disabled={loading}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  color: '#7C3AED',
-                  fontWeight: '500',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={e => !loading && (e.target.style.borderColor = '#7C3AED', e.target.style.background = '#f5f3ff')}
-                onMouseLeave={e => (e.target.style.borderColor = '#e5e7eb', e.target.style.background = '#fff')}
-              >
-                👤 Patient
-              </button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+          {/* Toggle login / signup */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <span style={{ fontSize: 13, color: '#666' }}>
+              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+            </span>
+            <button
+              onClick={() => { setAction(isSignUp ? 'login' : 'signup'); setError(''); setNotice(''); }}
+              style={{ background: 'none', border: 'none', color: '#7C3AED', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+            >
+              {isSignUp ? 'Sign In' : 'Create one'}
+            </button>
+          </div>
+
+          {/* Demo quick-login buttons (login screen only) */}
+          {!isSignUp && (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>Demo accounts</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                {['doctor', 'patient'].map(r => (
+                  <button
+                    key={r}
+                    onClick={() => quickLogin(r)}
+                    disabled={loading}
+                    style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, color: '#7C3AED', fontWeight: 500, transition: 'all 0.3s' }}
+                    onMouseEnter={e => !loading && Object.assign(e.target.style, { borderColor: '#7C3AED', background: '#f5f3ff' })}
+                    onMouseLeave={e => Object.assign(e.target.style, { borderColor: '#e5e7eb', background: '#fff' })}
+                  >
+                    {r === 'doctor' ? '👨‍⚕️ Doctor' : '👤 Patient'}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={() => quickLogin('admin')}
                 disabled={loading}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  color: '#7C3AED',
-                  fontWeight: '500',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={e => !loading && (e.target.style.borderColor = '#7C3AED', e.target.style.background = '#f5f3ff')}
-                onMouseLeave={e => (e.target.style.borderColor = '#e5e7eb', e.target.style.background = '#fff')}
+                style={{ width: '100%', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, color: '#7C3AED', fontWeight: 500, transition: 'all 0.3s' }}
+                onMouseEnter={e => !loading && Object.assign(e.target.style, { borderColor: '#7C3AED', background: '#f5f3ff' })}
+                onMouseLeave={e => Object.assign(e.target.style, { borderColor: '#e5e7eb', background: '#fff' })}
               >
                 🛡️ Admin
               </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

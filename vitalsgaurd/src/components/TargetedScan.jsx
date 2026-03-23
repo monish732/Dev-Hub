@@ -13,6 +13,7 @@ export default function TargetedScan() {
   const [analyzing, setAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState(null);
+  const [savingReport, setSavingReport] = useState(false);
   const navigate = useNavigate();
 
   async function handleAnalyze() {
@@ -20,15 +21,27 @@ export default function TargetedScan() {
     setScanResult(null);
     setError(null);
     try {
-      const response = await axios.post(`${API_BASE}/analyze-vitals`, {
-        heart_rate: hr,
+      const storedUser = localStorage.getItem('vg_user');
+      const userId = storedUser ? JSON.parse(storedUser).userId : null;
+
+      // Hitting the Node Auth Server. The node server proxies the request to Python
+      // and securely logs the result into the 'medical_reports' Supabase table.
+      const response = await axios.post('http://localhost:5003/store-report', {
+        userId,
+        scanType: 'Targeted Scan',
+        heartRate: hr,
         spo2: spo2,
         temperature: temp,
-        ecg_irregularity: 0.0 // Currently omitted from scan sliders
       });
+
+      if (response.data.success) {
+        setScanResult(response.data.data);
+      } else {
+        throw new Error(response.data.message || 'Analysis proxy failed');
+      }
       
-      setScanResult(response.data);
     } catch (err) {
+      console.error(err);
       setError('Health analysis system is currently unavailable.');
     } finally {
       setAnalyzing(false);

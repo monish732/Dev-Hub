@@ -4,7 +4,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { patients } from '../data/mockVitals';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://localhost:8000/api';
 
 const situationDescriptions = {
   'Normal': 'Vitals are stable and within normal baseline parameters. No immediate anomalies detected.',
@@ -97,70 +97,67 @@ export default function PatientDashboard({ userId, onLogout }) {
         return newHistory;
       });
 
-      // Fetch Model 01 (Current Classification)
+      // Fetch Disease Fingerprints (Current Classification)
       try {
-        const res01 = await fetch(`${API_BASE}/predict/disease`, {
+        const res01 = await fetch(`${API_BASE}/fingerprint`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ heart_rate: hrNum, spo2: spo2Num, temperature: tempNum, bp_systolic: Number(inputBpSystolic), bp_diastolic: Number(inputBpDiastolic) })
         });
         const data01 = await res01.json();
-        if (data01.all_probabilities) {
-          const chartData = Object.entries(data01.all_probabilities)
-            .map(([name, prob]) => ({ name: name.replace('_', ' '), Probability: parseFloat((prob * 100).toFixed(1)) }))
-            .sort((a, b) => b.Probability - a.Probability).slice(0, 5);
-          setMlResult({ ...data01, chartData });
-          const maxProb = Math.max(...Object.values(data01.all_probabilities));
+        if (data01.fingerprints) {
+          // Map fingerprints to the format the dashboard chart expects
+          const chartData = data01.fingerprints.map(fp => ({
+            name: fp.disease.replace('_', ' '),
+            Probability: parseFloat((fp.probability * 100).toFixed(1))
+          })).sort((a,b) => b.Probability - a.Probability).slice(0, 5);
+
+          setMlResult({ 
+            predicted_condition: data01.fingerprints[0]?.disease || 'Normal',
+            confidence: data01.fingerprints[0]?.probability || 0,
+            chartData 
+          });
+
+          const maxProb = data01.fingerprints[0]?.probability || 0;
           const currentScore = Math.round(maxProb * 100);
           setSeverityScore(currentScore);
 
-          // Fetch Model 07 (Trajectory Prediction) for 24-hour risk projection
+          // Fetch EWS (Early Warning Score) for risk projection parity
           try {
-            const res07 = await fetch(`${API_BASE}/predict/trajectory`, {
+            const res07 = await fetch(`${API_BASE}/ews`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ heart_rate: hrNum, spo2: spo2Num, temperature: tempNum, bp_systolic: Number(inputBpSystolic), bp_diastolic: Number(inputBpDiastolic) })
             });
             const data07 = await res07.json();
-            if (data07.trajectory) {
-              setRiskHistoryData(data07.trajectory);
+            if (data07.ews) {
+              const ewsScore = data07.ews.score;
+              // Simulate a trajectory based on the EWS score since trajectory endpoint is mock-only in main.py
+              const trajectoryData = [];
+              for (let hour = 0; hour <= 24; hour++) {
+                let riskValue = currentScore;
+                const isAbnormal = ewsScore > 3;
+                if (isAbnormal) {
+                  riskValue = Math.min(currentScore + (hour * 2.5), 95);
+                  if (hour > 12) riskValue = Math.max(riskValue - (hour - 12) * 1.2, currentScore);
+                } else {
+                  riskValue = Math.max(currentScore - (hour * 1.5), Math.max(0, currentScore - 25));
+                }
+                trajectoryData.push({ hour, risk: Math.round(riskValue) });
+              }
+              setRiskHistoryData(trajectoryData);
               const projections = {};
               [2, 6, 12, 24].forEach(h => {
-                const point = data07.trajectory.find(d => d.hour === h);
-                projections[h] = point ? Math.round(point.risk) : currentScore;
+                const point = trajectoryData.find(d => d.hour === h);
+                projections[h] = point ? point.risk : currentScore;
               });
               setProjectedRisks(projections);
-            } else {
-              throw new Error('No trajectory data');
             }
           } catch (err) {
-            console.log("Model 07 not available, using fallback trajectory", err);
-            // Fallback: simulate trajectory based on vital abnormalities
-            const isAbnormal = hrNum > 100 || spo2Num < 94 || tempNum > 38 || inputBpSystolic > 140;
-            const trajectoryData = [];
-            for (let hour = 0; hour <= 24; hour++) {
-              let riskValue = currentScore;
-              if (isAbnormal) {
-                // Risk increases initially, then plateaus
-                riskValue = Math.min(currentScore + (hour * 2.5), 95);
-                if (hour > 12) riskValue = Math.max(riskValue - (hour - 12) * 1.2, currentScore);
-              } else {
-                // Risk decreases gradually
-                riskValue = Math.max(currentScore - (hour * 1.5), Math.max(0, currentScore - 25));
-              }
-              riskValue = Math.max(0, Math.min(100, riskValue));
-              trajectoryData.push({ hour, risk: Math.round(riskValue) });
-            }
-            setRiskHistoryData(trajectoryData);
-            const projections = {};
-            [2, 6, 12, 24].forEach(h => {
-              const point = trajectoryData.find(d => d.hour === h);
-              projections[h] = point ? point.risk : currentScore;
-            });
-            setProjectedRisks(projections);
+            console.log("EWS trajectory fallback active", err);
           }
         }
-      } catch (err) { console.error("Model 01 failed", err); }
+      } catch (err) { console.error("Fingerprint API failed", err); }
     }, 400);
     return () => clearTimeout(timer);
   }, [inputHr, inputSpo2, inputTemp, inputBpSystolic, inputBpDiastolic]);

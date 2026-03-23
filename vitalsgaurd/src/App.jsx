@@ -12,53 +12,28 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is already logged in on app load
+  // Check if a user session exists in localStorage on app load
   useEffect(() => {
-    const checkSession = async () => {
+    const storedUser = localStorage.getItem('vg_user');
+    if (storedUser) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const userMetadata = session.user.user_metadata || {};
-          setUser({
-            role: userMetadata.role || 'patient',
-            userId: session.user.id,
-            email: session.user.email,
-          });
-        }
-      } catch (error) {
-        console.error('Error checking session:', error);
-      } finally {
-        setLoading(false);
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('vg_user');
       }
-    };
-
-    checkSession();
-
-    // Subscribe to auth changes (safe in both online & offline/stub mode)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        const userMetadata = session.user.user_metadata || {};
-        setUser({
-          role: userMetadata.role || 'patient',
-          userId: session.user.id,
-          email: session.user.email,
-        });
-      } else if (event === 'SIGNED_OUT') {
-        // Only clear user on an explicit sign-out, not on initial stub no-session
-        setUser(null);
-      }
-    });
-
-    return () => subscription?.unsubscribe();
+    }
+    setLoading(false);
   }, []);
 
-  function handleLogin({ role, userId, email }) {
-    setUser({ role, userId, email });
+  function handleLogin({ role, userId, username }) {
+    const userData = { role, userId, username };
+    setUser(userData);
+    localStorage.setItem('vg_user', JSON.stringify(userData));
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
     setUser(null);
+    localStorage.removeItem('vg_user');
   }
 
   if (loading) {

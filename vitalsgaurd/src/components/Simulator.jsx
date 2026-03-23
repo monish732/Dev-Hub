@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://localhost:8000/api';
 
 const getRiskColor = (condition) => {
   const c = condition.toLowerCase();
@@ -24,13 +24,25 @@ export default function Simulator() {
   useEffect(() => {
     const fetchPrediction = async () => {
       try {
-        const response = await fetch(`${API_BASE}/predict/whatif`, {
+        const response = await fetch(`${API_BASE}/ews`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ heart_rate: hr, spo2, temperature: temp, respiratory_rate: respRate, systolic_bp: sysBp })
         });
         const data = await response.json();
-        if (data && data["2h"]) setMlResult(data);
+        if (data.ews) {
+          const score = data.ews.score;
+          const level = data.ews.level;
+          // Generate a simulated trajectory based on the EWS
+          const simulatedResult = {
+            overall_trajectory: level === 'stable' ? 'improving' : 'deteriorating',
+            '2h':  { condition: level === 'stable' ? 'Stable' : 'Slight Risk' },
+            '6h':  { condition: level === 'stable' ? 'Normal' : 'Medical Review' },
+            '12h': { condition: level === 'stable' ? 'Baseline' : 'Early Warning' },
+            '24h': { condition: level === 'stable' ? 'Recovery' : 'Clinical Watch' }
+          };
+          setMlResult(simulatedResult);
+        }
       } catch (err) { console.error("Simulator ML Fetch Failed", err); }
     };
     const delay = setTimeout(fetchPrediction, 300);
