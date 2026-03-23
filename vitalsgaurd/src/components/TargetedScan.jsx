@@ -3,18 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DigitalTwin from './DigitalTwin';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000/api';
-
-const situationDescriptions = {
-  'Normal': 'Vitals are stable and within normal baseline parameters. No immediate anomalies detected.',
-  'Tachycardia': 'Elevated heart rate detected. This could indicate stress, cardiac exertion, or an early arrhythmia signature.',
-  'Bradycardia': 'Unusually low heart rate detected. If not an athlete, monitor for dizziness or fatigue.',
-  'Hypoxemia': 'Low blood oxygen levels detected. Shows potential respiratory restriction or circulatory insufficiency.',
-  'Fever': 'Elevated body temperature detected, suggesting possible infection or inflammatory response.',
-  'Hypertension': 'High blood pressure readings. Represents increased cardiovascular load.',
-  'Hypotension': 'Low blood pressure detected. Could lead to fainting or indicate poor circulation.',
-  'Emergency': 'Critical multi-vital failure pattern detected. Immediate medical intervention is highly recommended.'
-};
+const API_BASE = 'http://localhost:8000/api';
 
 export default function TargetedScan() {
   const [hr, setHr] = useState(75);
@@ -31,21 +20,14 @@ export default function TargetedScan() {
     setScanResult(null);
     setError(null);
     try {
-      const response = await axios.post(`${API_BASE}/predict/disease`, {
+      const response = await axios.post(`${API_BASE}/analyze-vitals`, {
         heart_rate: hr,
         spo2: spo2,
-        temperature: temp
+        temperature: temp,
+        ecg_irregularity: 0.0 // Currently omitted from scan sliders
       });
       
-      const condition = response.data.predicted_condition.replace('_', ' ');
-      const desc = situationDescriptions[Object.keys(situationDescriptions).find(k => condition.toLowerCase().includes(k.toLowerCase()))] || 'Pattern deviates from normal baseline. Continuous monitoring advised.';
-      
-      setScanResult({
-          condition: condition,
-          confidence: (response.data.confidence * 100).toFixed(1),
-          description: desc,
-          consensus: `AI analysis predicts ${condition} with ${(response.data.confidence*100).toFixed(1)}% confidence.`
-      });
+      setScanResult(response.data);
     } catch (err) {
       setError('Health analysis system is currently unavailable.');
     } finally {
@@ -96,10 +78,14 @@ export default function TargetedScan() {
           {scanResult && (
             <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '12px', border: '1px solid #38bdf8', boxShadow: '0 0 20px rgba(56, 189, 248, 0.1)' }}>
               <h3 style={{ color: '#38bdf8', fontSize: '1rem', marginTop: 0 }}>AI Clinical Report</h3>
-              <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#fff', margin: '0.8rem 0' }}>{scanResult.condition}</div>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.5 }}>{scanResult.description}</p>
+              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#fff', margin: '0.8rem 0', textTransform: 'uppercase' }}>
+                {scanResult.ui_label || scanResult.condition}
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                {scanResult.voice_summary || scanResult.consensus}
+              </p>
               <div style={{ marginTop: '1rem', padding: '0.6rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)', fontSize: '0.8rem', color: '#38bdf8', textAlign: 'center' }}>
-                Confidence: {scanResult.confidence}%
+                AI Confidence: <strong>{scanResult.lstm_result?.confidence ? Math.round(scanResult.lstm_result.confidence * 100) : scanResult.confidence || 'N/A'}%</strong>
               </div>
             </div>
           )}
