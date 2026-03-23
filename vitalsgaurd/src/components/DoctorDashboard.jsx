@@ -100,23 +100,6 @@ export default function DoctorDashboard({ onLogout }) {
 						<HealthCard title="Temperature" value={summary.temp} unit=" °C" severity={summary.status} icon="🌡️" />
 					</div>
 
-					{scanResult && (
-						<div className="trend-box" style={{ background: '#0f172a', border: '1px solid #334155' }}>
-							<h3 style={{ color: '#38bdf8' }}>AI Risk Signature & Fingerprints</h3>
-							<p style={{ color: '#cbd5e1' }}>
-								EWS Score: <strong>{scanResult.ews.score} ({scanResult.ews.level})</strong>. 
-								Silent Risk Confidence: <strong>{Math.round(scanResult.lstm_result.confidence * 100)}%</strong>.
-							</p>
-							<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-								{scanResult.fingerprints.map(fp => (
-									<span key={fp.disease} style={{ background: '#1e293b', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', color: '#f8fafc', border: '1px solid #475569' }}>
-										{fp.disease.replace(/_/g, ' ')}
-									</span>
-								))}
-							</div>
-						</div>
-					)}
-
 					<div className="chart-area">
 						<ResponsiveContainer width="100%" height={270}>
 							<LineChart data={activePatient.vitals}>
@@ -132,25 +115,25 @@ export default function DoctorDashboard({ onLogout }) {
 					</div>
 
 					{scanResult && (
-						<div className="ai-debate" style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '1rem' }}>
-							<h3 style={{ color: '#c084fc', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
+						<div className="ai-debate" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+							<h3 style={{ color: '#7C3AED', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
 								<span>🤖</span> Live AI Multi-Agent Interaction
 							</h3>
 
 							{/* Agent Feed */}
 							<div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
 								{[
-									{ key: 'monitoring', icon: '📈', color: '#38bdf8', label: 'Monitoring Agent', bg: '#0c1a2e',
+									{ key: 'monitoring', icon: '📈', color: '#38bdf8', label: 'Monitoring Agent', bg: '#eff6ff',
 									  text: scanResult.debate?.monitoring_view },
-									{ key: 'diagnosis',  icon: '🩺', color: '#f472b6', label: 'Diagnosis Agent',  bg: '#1a0e1e',
+									{ key: 'diagnosis',  icon: '🩺', color: '#f472b6', label: 'Diagnosis Agent',  bg: '#fdf2f8',
 									  text: scanResult.debate?.diagnosis_view },
-									{ key: 'debate',     icon: '⚖️', color: '#c084fc', label: 'Debate Coordinator', bg: '#1e1b4b',
+									{ key: 'debate',     icon: '⚖️', color: '#c084fc', label: 'Debate Coordinator', bg: '#faf5ff',
 									  text: `Consensus reached (Disagreement score: ${scanResult.disagreement_score}/10)\n${scanResult.debate?.consensus || scanResult.consensus}` },
-									{ key: 'explanation',icon: '🗣️', color: '#fbbf24', label: 'Explanation Agent', bg: '#1c1500',
+									{ key: 'explanation',icon: '🗣️', color: '#fbbf24', label: 'Explanation Agent', bg: '#fefce8',
 									  text: scanResult.explanation?.voice_summary || scanResult.voice_summary },
-									{ key: 'actions',    icon: '⚡', color: '#22c55e', label: 'Action Agent', bg: '#0b1e0e',
+									{ key: 'actions',    icon: '⚡', color: '#22c55e', label: 'Action Agent', bg: '#f0fdf4',
 									  text: (scanResult.actions || []).map((a, i) => `${i + 1}. ${a}`).join('\n') },
-									{ key: 'emergency',  icon: '🚨', color: '#ef4444', label: 'Emergency Agent', bg: '#1f0808',
+									{ key: 'emergency',  icon: '🚨', color: '#ef4444', label: 'Emergency Agent', bg: '#fef2f2',
 									  text: `Urgency: ${scanResult.emergency?.urgency_note}\nDispatch Alert: ${scanResult.emergency?.dispatch_alert ? 'YES ⚠️' : 'NO ✓'}` },
 								].filter(item => item.text).map(item => (
 									<div key={item.key} style={{ background: item.bg, padding: '1rem 1.2rem', borderRadius: '12px', borderLeft: `4px solid ${item.color}` }}>
@@ -160,14 +143,14 @@ export default function DoctorDashboard({ onLogout }) {
 												{item.label}
 											</strong>
 										</div>
-										<p style={{ color: '#f1f5f9', margin: 0, fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+										<p style={{ color: '#374151', margin: 0, fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
 											{item.text}
 										</p>
 									</div>
 								))}
 							</div>
 
-							<div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b' }}>
+							<div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b' }}>
 								<span>Disagreement Score: <strong style={{ color: '#c084fc' }}>{scanResult.disagreement_score}/10</strong></span>
 								<span>EWS: <strong style={{ color: scanResult.ews?.colour || '#22c55e' }}>{scanResult.ews?.level?.toUpperCase()}</strong></span>
 								<span>Emergency Override: <strong style={{ color: scanResult.emergency?.dispatch_alert ? '#ef4444' : '#22c55e' }}>{scanResult.emergency?.dispatch_alert ? 'YES' : 'NO'}</strong></span>

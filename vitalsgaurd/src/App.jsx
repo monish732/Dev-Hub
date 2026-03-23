@@ -7,6 +7,7 @@ import PatientDashboard from './components/PatientDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Simulator from './components/Simulator';
 import TargetedScan from './components/TargetedScan';
+import IntegratedHealthAnalyzer from './components/IntegratedHealthAnalyzer';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -101,6 +102,13 @@ export default function App() {
             ) : (
               <Navigate to="/" replace />
             )
+          }
+        />
+
+        <Route
+          path="/health-analysis"
+          element={
+            <IntegratedHealthAnalyzer />
           }
         />
 

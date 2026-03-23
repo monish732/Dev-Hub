@@ -5,6 +5,7 @@ Routes:
   POST /api/analyze-vitals      → full 5-agent pipeline
   POST /api/ews                 → Early Warning Score only (fast, no LLM)
   POST /api/fingerprint         → Health Anomaly Fingerprint only
+  POST /api/predict/disease     → Model 01 Health Predictor
   GET  /api/health              → server health check
   GET  /api/simulate            → sample vitals for frontend testing
 """
@@ -14,12 +15,16 @@ import asyncio
 import json
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+
+# Add base_models to path for Model 01 import
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../base_models'))
 
 from agents.vitals_agents import run_full_pipeline
 from models.health_logic import compute_ews, match_fingerprints
@@ -82,6 +87,49 @@ async def simulate_vitals():
         "temperature": 38.4,
         "ecg_irregularity": 0.72,
     }
+
+
+@app.post("/api/predict/disease")
+async def predict_disease(payload: VitalsPayload):
+    """Model 01 Health Predictor endpoint — returns health condition prediction."""
+    try:
+        # Import Model 01 predictor dynamically
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("predict_module", 
+            os.path.join(os.path.dirname(__file__), '../../base_models/01_health_predictor/predict.py'))
+        predict_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(predict_module)
+        predict_condition = predict_module.predict_condition
+        
+        # Prepare vitals dictionary for the model
+        vitals_dict = {
+            "heart_rate": payload.heart_rate,
+            "spo2": payload.spo2,
+            "temperature": payload.temperature,
+            "respiratory_rate": 16,  # Default if not provided
+            "systolic_bp": 120,      # Default if not provided
+            "diastolic_bp": 75,      # Default if not provided
+            "hr_variability": 8,     # Default if not provided
+        }
+        
+        # Get prediction from Model 01
+        result = predict_condition(vitals_dict)
+        
+        return {
+            "status": "success",
+            "predicted_condition": result["predicted_condition"],
+            "confidence": result["confidence"],
+            "all_probabilities": result["all_probabilities"],
+        }
+    except Exception as exc:
+        logger.exception("Model 01 prediction failed")
+        return {
+            "status": "error",
+            "error": str(exc),
+            "predicted_condition": "Unknown",
+            "confidence": 0.0,
+            "all_probabilities": {},
+        }
 
 
 @app.post("/api/ews")

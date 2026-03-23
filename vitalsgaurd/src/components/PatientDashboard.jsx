@@ -4,7 +4,33 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { patients } from '../data/mockVitals';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASES = ['http://localhost:5000/api', 'http://localhost:8000/api'];
+
+async function postJsonWithFallback(urls, payload) {
+  let lastError = 'Service is currently unavailable.';
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        lastError = message || `Request failed on ${url}`;
+        continue;
+      }
+
+      return await response.json();
+    } catch (err) {
+      lastError = err?.message || `Could not connect to ${url}`;
+    }
+  }
+
+  throw new Error(lastError);
+}
 
 const situationDescriptions = {
   'Normal': 'Vitals are stable and within normal baseline parameters. No immediate anomalies detected.',
@@ -56,8 +82,24 @@ export default function PatientDashboard({ userId, onLogout }) {
   // ML Results & Severity Score
   const [mlResult, setMlResult] = useState(null);
   const [severityScore, setSeverityScore] = useState(0);
-  const [projectedRisks, setProjectedRisks] = useState({ 2: null, 6: null, 12: null, 24: null });
-  const [riskHistoryData, setRiskHistoryData] = useState([]);
+  const [agentScanLoading, setAgentScanLoading] = useState(false);
+  const [agentScanError, setAgentScanError] = useState('');
+  const [agentScanResult, setAgentScanResult] = useState(null);
+  const [trajectoryData, setTrajectoryData] = useState([
+    { hour: 0, risk: 45 },
+    { hour: 2, risk: 48 },
+    { hour: 4, risk: 52 },
+    { hour: 6, risk: 55 },
+    { hour: 8, risk: 58 },
+    { hour: 10, risk: 60 },
+    { hour: 12, risk: 62 },
+    { hour: 14, risk: 63 },
+    { hour: 16, risk: 62 },
+    { hour: 18, risk: 60 },
+    { hour: 20, risk: 55 },
+    { hour: 22, risk: 50 },
+    { hour: 24, risk: 45 }
+  ]);
 
   // Auto-update main dashboard with current vitals
   useEffect(() => {
@@ -97,43 +139,91 @@ export default function PatientDashboard({ userId, onLogout }) {
         return newHistory;
       });
 
+      const payload = {
+        heart_rate: hrNum,
+        spo2: spo2Num,
+        temperature: tempNum,
+        systolic_bp: Number(inputBpSystolic),
+        diastolic_bp: Number(inputBpDiastolic),
+        bp_systolic: Number(inputBpSystolic),
+        bp_diastolic: Number(inputBpDiastolic)
+      };
+
       // Fetch Disease Fingerprints (Current Classification)
       try {
-        const res01 = await fetch(`${API_BASE}/fingerprint`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ heart_rate: hrNum, spo2: spo2Num, temperature: tempNum, bp_systolic: Number(inputBpSystolic), bp_diastolic: Number(inputBpDiastolic) })
-        });
-        const data01 = await res01.json();
-        if (data01.fingerprints) {
-          // Map fingerprints to the format the dashboard chart expects
-          const chartData = data01.fingerprints.map(fp => ({
-            name: fp.disease.replace('_', ' '),
-            Probability: parseFloat((fp.probability * 100).toFixed(1))
-          })).sort((a,b) => b.Probability - a.Probability).slice(0, 5);
+        const modelUrls = API_BASES.flatMap((base) => [
+          `${base}/fingerprint`,
+          `${base}/predict/disease`
+        ]);
+        const data01 = await postJsonWithFallback(modelUrls, payload);
 
+        let predictedCondition = 'Normal';
+        let confidence = 0;
+        let allProbabilities = {};
+        let chartData = [];
+
+        if (Array.isArray(data01.fingerprints) && data01.fingerprints.length > 0) {
+          const sortedFingerprints = [...data01.fingerprints].sort((a, b) => (b.probability || 0) - (a.probability || 0));
+
+          allProbabilities = sortedFingerprints.reduce((acc, fp) => {
+            if (fp?.disease) acc[fp.disease] = fp.probability || 0;
+            return acc;
+          }, {});
+
+          chartData = sortedFingerprints.map(fp => ({
+            name: fp.disease.replace('_', ' '),
+            Probability: parseFloat(((fp.probability || 0) * 100).toFixed(1))
+          })).slice(0, 5);
+
+          predictedCondition = sortedFingerprints[0]?.disease || 'Normal';
+          confidence = sortedFingerprints[0]?.probability || 0;
+        } else if (data01.all_probabilities && typeof data01.all_probabilities === 'object') {
+          allProbabilities = data01.all_probabilities;
+          const sortedProbabilities = Object.entries(allProbabilities).sort(([, a], [, b]) => b - a);
+
+          chartData = sortedProbabilities.map(([name, prob]) => ({
+            name: name.replace('_', ' '),
+            Probability: parseFloat((prob * 100).toFixed(1))
+          })).slice(0, 5);
+
+          predictedCondition = data01.predicted_condition || sortedProbabilities[0]?.[0] || 'Normal';
+          confidence = typeof data01.confidence === 'number' ? data01.confidence : (sortedProbabilities[0]?.[1] || 0);
+        }
+
+        if (Object.keys(allProbabilities).length > 0) {
           setMlResult({ 
-            predicted_condition: data01.fingerprints[0]?.disease || 'Normal',
-            confidence: data01.fingerprints[0]?.probability || 0,
-            chartData 
+            predicted_condition: predictedCondition,
+            confidence,
+            chartData,
+            all_probabilities: allProbabilities
           });
 
-          const maxProb = data01.fingerprints[0]?.probability || 0;
+          const maxProb = Math.max(...Object.values(allProbabilities));
           const currentScore = Math.round(maxProb * 100);
           setSeverityScore(currentScore);
-
-          // Fetch EWS (Early Warning Score) for risk projection parity
+          
+          // Prefer dedicated trajectory endpoint; fallback to EWS-based synthetic trajectory.
           try {
-            const res07 = await fetch(`${API_BASE}/ews`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ heart_rate: hrNum, spo2: spo2Num, temperature: tempNum, bp_systolic: Number(inputBpSystolic), bp_diastolic: Number(inputBpDiastolic) })
-            });
-            const data07 = await res07.json();
-            if (data07.ews) {
-              const ewsScore = data07.ews.score;
-              // Simulate a trajectory based on the EWS score since trajectory endpoint is mock-only in main.py
-              const trajectoryData = [];
+            const trajectoryRes = await postJsonWithFallback(
+              API_BASES.map((base) => `${base}/predict/trajectory`),
+              payload
+            );
+            if (trajectoryRes.trajectory && Array.isArray(trajectoryRes.trajectory)) {
+              console.log("✓ Trajectory data received:", trajectoryRes.trajectory);
+              setTrajectoryData(trajectoryRes.trajectory);
+            } else {
+              throw new Error('Trajectory payload missing');
+            }
+          } catch (trajErr) {
+            console.log("Trajectory endpoint not available, falling back to EWS", trajErr);
+            try {
+              const data07 = await postJsonWithFallback(
+                API_BASES.map((base) => `${base}/ews`),
+                payload
+              );
+              if (data07.ews) {
+                const ewsScore = data07.ews.score;
+                const simulatedTrajectory = [];
               for (let hour = 0; hour <= 24; hour++) {
                 let riskValue = currentScore;
                 const isAbnormal = ewsScore > 3;
@@ -143,18 +233,13 @@ export default function PatientDashboard({ userId, onLogout }) {
                 } else {
                   riskValue = Math.max(currentScore - (hour * 1.5), Math.max(0, currentScore - 25));
                 }
-                trajectoryData.push({ hour, risk: Math.round(riskValue) });
+                simulatedTrajectory.push({ hour, risk: Math.round(riskValue) });
               }
-              setRiskHistoryData(trajectoryData);
-              const projections = {};
-              [2, 6, 12, 24].forEach(h => {
-                const point = trajectoryData.find(d => d.hour === h);
-                projections[h] = point ? point.risk : currentScore;
-              });
-              setProjectedRisks(projections);
+              setTrajectoryData(simulatedTrajectory);
             }
-          } catch (err) {
-            console.log("EWS trajectory fallback active", err);
+            } catch (ewsErr) {
+              console.log("EWS trajectory fallback active", ewsErr);
+            }
           }
         }
       } catch (err) { console.error("Fingerprint API failed", err); }
@@ -162,10 +247,63 @@ export default function PatientDashboard({ userId, onLogout }) {
     return () => clearTimeout(timer);
   }, [inputHr, inputSpo2, inputTemp, inputBpSystolic, inputBpDiastolic]);
 
+  const handleRunAgentDebateScan = async () => {
+    setAgentScanLoading(true);
+    setAgentScanError('');
+
+    const hrNum = Number(inputHr) || 0;
+    const spo2Num = Number(inputSpo2) || 0;
+    const tempNum = Number(inputTemp) || 0;
+
+    const payload = {
+      heart_rate: hrNum,
+      spo2: spo2Num,
+      temperature: tempNum,
+      systolic_bp: Number(inputBpSystolic),
+      diastolic_bp: Number(inputBpDiastolic),
+      bp_systolic: Number(inputBpSystolic),
+      bp_diastolic: Number(inputBpDiastolic),
+      ecg_irregularity: Number((Math.min(0.95, Math.max(0.05, severityScore / 100))).toFixed(2))
+    };
+
+    const endpoints = [
+      'http://localhost:5000/api/analyze-vitals',
+      'http://localhost:8000/api/analyze-vitals'
+    ];
+
+    let lastError = 'Agent-debate service is currently unavailable.';
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const message = await response.text();
+          lastError = message || `Request failed on ${endpoint}`;
+          continue;
+        }
+
+        const result = await response.json();
+        setAgentScanResult(result);
+        setAgentScanLoading(false);
+        return;
+      } catch (err) {
+        lastError = err?.message || `Could not connect to ${endpoint}`;
+      }
+    }
+
+    setAgentScanError(lastError);
+    setAgentScanLoading(false);
+  };
+
   // Send Dataset Label to Backend
   const handleSaveDatapoint = async (label) => {
     try {
-      await axios.post(`${API_BASE}/save-datapoint`, {
+      const savePayload = {
         heart_rate: currentHr,
         spo2: currentSpo2,
         temperature: currentTemp,
@@ -174,7 +312,24 @@ export default function PatientDashboard({ userId, onLogout }) {
         label: label,
         patient_id: userId,
         timestamp: new Date().toISOString()
-      });
+      };
+
+      let saveSucceeded = false;
+      let saveError = null;
+      for (const base of API_BASES) {
+        try {
+          await axios.post(`${base}/save-datapoint`, savePayload);
+          saveSucceeded = true;
+          break;
+        } catch (err) {
+          saveError = err;
+        }
+      }
+
+      if (!saveSucceeded) {
+        throw saveError || new Error('Save datapoint failed');
+      }
+
       alert(`✅ Datapoint saved as: ${label}`);
       setDatasetLabel('');
     } catch (err) {
@@ -393,44 +548,6 @@ export default function PatientDashboard({ userId, onLogout }) {
               </div>
             </div>
 
-            {/* AI Health Risk History - Area Chart */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
-              <h3 style={{ margin: '0 0 1.5rem 0', color: '#7C3AED', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📊</span> AI Health Risk History (Model 07 Trajectory)
-              </h3>
-              {riskHistoryData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={riskHistoryData}>
-                    <defs>
-                      <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#7C3AED" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="hour" label={{ value: 'Hours', position: 'insideBottomRight', offset: -10 }} />
-                    <YAxis label={{ value: 'Risk Score (0-100)', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
-                    <Tooltip 
-                      formatter={(value) => `${value}%`}
-                      labelFormatter={(label) => `Hour ${label}`}
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px' }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="risk" 
-                      stroke="#7C3AED" 
-                      strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorRisk)"
-                      isAnimationActive={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <p style={{ color: '#999', textAlign: 'center', padding: '2rem' }}>Loading risk trajectory...</p>
-              )}
-            </div>
-
             {/* ML Results */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
               {/* ML Current Situation */}
@@ -467,55 +584,257 @@ export default function PatientDashboard({ userId, onLogout }) {
               </div>
             </div>
 
-            {/* Projected Health Risks */}
+            {/* Projected Health Risks - Model 01 Based */}
             <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
               <h3 style={{ margin: '0 0 1.5rem 0', color: '#7C3AED', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📋</span> Projected Health Risks (Model 07)
+                <span>🎯</span> Projected Health Risks (Model 01)
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-                {[2, 6, 12, 24].map(hours => {
-                  const riskScore = projectedRisks[hours];
-                  const riskColor = riskScore > 70 ? '#ef4444' : riskScore > 40 ? '#f59e0b' : '#10b981';
-                  const riskStatus = riskScore > 70 ? 'High Risk' : riskScore > 40 ? 'Medium Risk' : 'Low Risk';
-                  const riskIcon = riskScore > 70 ? '🔴' : riskScore > 40 ? '🟡' : '🟢';
-                  
-                  return (
-                    <div key={hours} style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '10px', border: `2px solid ${riskColor}`, textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600', marginBottom: '0.5rem' }}>{hours} {hours === 1 ? 'hour' : 'hours'}</div>
-                      {riskScore !== null ? (
-                        <div>
-                          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: riskColor, marginBottom: '0.5rem' }}>
-                            {riskScore}
-                          </div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '600', color: riskColor, marginBottom: '0.5rem' }}>
-                            {riskIcon} {riskStatus}
-                          </div>
-                          <div style={{ width: '100%', height: '6px', backgroundColor: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${riskScore}%`, backgroundColor: riskColor, transition: 'width 0.3s ease' }}></div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ color: '#999', fontSize: '0.9rem' }}>Calculating...</div>
-                      )}
+              
+              {mlResult ? (
+                <div>
+                  {/* Top Risk Conditions */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', color: '#7C3AED', fontSize: '1.1rem', fontWeight: '600' }}>Top Risk Conditions</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                      {Object.entries(mlResult.all_probabilities || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 4)
+                        .map(([condition, prob], idx) => {
+                          // Simple condition-based color: Normal=Green, Mild=Yellow, Severe=Red
+                          const conditionLower = condition.toLowerCase();
+                          let riskColor, riskIcon;
+                          
+                          if (conditionLower.includes('normal') || conditionLower.includes('stable')) {
+                            riskColor = '#10b981';
+                            riskIcon = '🟢';
+                          } else if (conditionLower.includes('fever') || conditionLower.includes('tachycardia')) {
+                            // Mild/moderate conditions
+                            riskColor = '#f59e0b';
+                            riskIcon = '🟡';
+                          } else {
+                            // Severe conditions: Hypoxia, Bradycardia, Hypertension, etc.
+                            riskColor = '#ef4444';
+                            riskIcon = '🔴';
+                          }
+                          
+                          return (
+                            <div key={idx} style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '10px', border: `2px solid ${riskColor}`, textAlign: 'center' }}>
+                              <div style={{ fontSize: '1rem', color: '#1f2937', fontWeight: '600', marginBottom: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{condition.replace('_', ' ')}</div>
+                              <div style={{ fontSize: '2.2rem', fontWeight: 'bold', color: riskColor, marginBottom: '0.5rem' }}>{(prob * 100).toFixed(1)}%</div>
+                              <div style={{ fontSize: '1.3rem', marginBottom: '0.75rem' }}>{riskIcon}</div>
+                              <div style={{ width: '100%', height: '4px', backgroundColor: '#e5e7eb', borderRadius: '2px', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${prob * 100}%`, backgroundColor: riskColor, transition: 'width 0.3s ease' }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
-                  );
-                })}
+                  </div>
+
+                  {/* Risk Assessment Insight */}
+                  <div style={{ padding: '1.5rem', backgroundColor: severityScore > 70 ? '#fee2e2' : severityScore > 40 ? '#fef3c7' : '#ecfdf5', borderRadius: '12px', borderLeft: `5px solid ${severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981'}`, marginBottom: '2rem' }}>
+                    <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', color: severityScore > 70 ? '#991b1b' : severityScore > 40 ? '#92400e' : '#065f46' }}>
+                      <span>{severityScore > 70 ? '⚠️' : severityScore > 40 ? '⏱️' : '✅'}</span> Risk Assessment
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.6, color: severityScore > 70 ? '#991b1b' : severityScore > 40 ? '#92400e' : '#065f46' }}>
+                      {severityScore > 70 
+                        ? `🔴 High Risk Detected: ${mlResult.predicted_condition.replace('_', ' ')} is flagged with high confidence (${severityScore}%). Review vitals immediately and consider medical intervention.`
+                        : severityScore > 40
+                        ? `🟡 Medium Risk Detected: ${mlResult.predicted_condition.replace('_', ' ')} detected with moderate confidence (${severityScore}%). Continue close monitoring and adjustment of care plan.`
+                        : `🟢 Low Risk Detected: ${mlResult.predicted_condition.replace('_', ' ')} detected with standard confidence (${severityScore}%). Patient condition appears stable. routine monitoring recommended.`
+                      }
+                    </p>
+                  </div>
+
+                  {/* Vital Signs Analysis */}
+                  <div style={{ backgroundColor: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e5e7eb' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', color: '#7C3AED', fontSize: '1rem', fontWeight: '600' }}>📋 Vital Signs Analysis</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', fontSize: '0.9rem' }}>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                        <div style={{ fontWeight: '600', color: '#333', marginBottom: '0.25rem' }}>Heart Rate</div>
+                        <div style={{ color: '#666' }}>{inputHr} BPM {inputHr > 100 ? '⚠️ Elevated' : inputHr < 60 ? '⚠️ Low' : '✓ Normal'}</div>
+                      </div>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                        <div style={{ fontWeight: '600', color: '#333', marginBottom: '0.25rem' }}>SpO₂</div>
+                        <div style={{ color: '#666' }}>{inputSpo2}% {inputSpo2 < 94 ? '⚠️ Low' : '✓ Normal'}</div>
+                      </div>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                        <div style={{ fontWeight: '600', color: '#333', marginBottom: '0.25rem' }}>Temperature</div>
+                        <div style={{ color: '#666' }}>{inputTemp}°C {inputTemp > 38 ? '⚠️ Fever' : inputTemp < 36 ? '⚠️ Low' : '✓ Normal'}</div>
+                      </div>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                        <div style={{ fontWeight: '600', color: '#333', marginBottom: '0.25rem' }}>Blood Pressure</div>
+                        <div style={{ color: '#666' }}>{inputBpSystolic}/{inputBpDiastolic} mmHg {inputBpSystolic > 140 ? '⚠️ High' : inputBpSystolic < 90 ? '⚠️ Low' : '✓ Normal'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: '#999', textAlign: 'center', padding: '2rem' }}>Adjusting modifiers to see health risk assessment...</p>
+              )}
+            </div>
+
+            {/* AI Health Risk History - Area Chart */}
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem', border: '2px solid #e9d5ff' }}>
+              <h3 style={{ margin: '0 0 0.5rem 0', color: '#7C3AED', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                <span>📊</span> Real-Time Confidence Tracking (Model 01)
+              </h3>
+              <p style={{ margin: '0 0 1.5rem 0', color: '#666', fontSize: '0.9rem' }}>24-hour risk forecast based on current vital parameters • Updates as you adjust parameters</p>
+              {trajectoryData.length > 0 ? (
+                <div style={{ position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height={380}>
+                    <AreaChart data={trajectoryData} margin={{ top: 10, right: 30, left: 0, bottom: 50 }}>
+                      <defs>
+                        <linearGradient id="colorTrajectory" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.9}/>
+                          <stop offset="95%" stopColor="#7C3AED" stopOpacity={0.15}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="hour" 
+                        tick={{ fontSize: 12, fill: '#666' }}
+                        label={{ value: 'Hours Ahead', position: 'insideBottomRight', offset: -15, fontSize: 12, fill: '#7C3AED', fontWeight: '600' }}
+                      />
+                      <YAxis 
+                        domain={[0, 100]}
+                        tick={{ fontSize: 12, fill: '#666' }}
+                        label={{ value: 'Risk Score (%)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#7C3AED', fontWeight: '600' }}
+                      />
+                      <Tooltip 
+                        formatter={(value) => [`${value}%`, 'Risk Score']}
+                        labelFormatter={(label) => `${label} hours from now`}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255,255,255,0.95)', 
+                          border: '2px solid #7C3AED', 
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          padding: '12px'
+                        }}
+                        labelStyle={{ color: '#7C3AED', fontWeight: '700' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="risk" 
+                        stroke="#7C3AED" 
+                        strokeWidth={4}
+                        fillOpacity={1} 
+                        fill="url(#colorTrajectory)"
+                        isAnimationActive={false}
+                        dot={{ fill: '#7C3AED', r: 5 }}
+                        activeDot={{ r: 7, stroke: '#fff', strokeWidth: 2 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', color: '#666' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontWeight: '600', color: '#7C3AED' }}>Current Risk:</span> {trajectoryData[0]?.risk}%
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: '600', color: '#7C3AED' }}>24-Hour Peak:</span> {Math.max(...trajectoryData.map(d => d.risk))}%
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: '600', color: '#7C3AED' }}>Final Status:</span> {trajectoryData[trajectoryData.length - 1]?.risk}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '4rem 2rem', color: '#999' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📈</div>
+                  <p>Adjusting parameters to see 24-hour risk forecast...</p>
+                  <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>The graph updates automatically when you modify vital parameters</p>
+                </div>
+              )}
+            </div>
+
+            {/* Phidata Agent-Debate AI Scan - same style as Doctor Dashboard */}
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0, color: '#7C3AED', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🤖</span> Live AI Multi-Agent Interaction
+                </h3>
+                <button
+                  onClick={handleRunAgentDebateScan}
+                  disabled={agentScanLoading}
+                  style={{ padding: '0.6rem 1.2rem', backgroundColor: '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', cursor: agentScanLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                >
+                  {agentScanLoading ? 'Scanning Patient...' : 'Run Phidata Agent Scan ✨'}
+                </button>
               </div>
 
-              {/* AI Insight */}
-              <div style={{ padding: '1.5rem', backgroundColor: '#ede9fe', borderRadius: '12px', borderLeft: '5px solid #7C3AED', marginTop: '1.5rem' }}>
-                <h4 style={{ margin: '0 0 0.75rem 0', color: '#7C3AED', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>💡</span> AI Insight:
-                </h4>
-                <p style={{ margin: 0, color: '#5b21b6', fontSize: '0.95rem', lineHeight: 1.6 }}>
-                  {severityScore > 70 
-                    ? `Based on the current trajectory with elevated vitals, the patient's condition is likely to worsen. Close observation and intervention recommended.`
-                    : severityScore > 40
-                    ? `Based on the current trajectory, the patient's condition is likely to stabilize. Monitor closely over the next few hours for any changes.`
-                    : `Based on the current trajectory, the patient's condition is likely to remain stable. Observe no significant risk trends closely over the next few hours.`
-                  }
-                </p>
+              {/* Current Vital Signs - Always Visible */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' }}>
+                <h4 style={{ color: '#64748b', margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📊 Current Vital Signs</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ padding: '0.75rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase' }}>❤️ Heart Rate</div>
+                    <div style={{ color: '#1e293b', fontSize: '1.3rem', fontWeight: 'bold', marginTop: '0.25rem' }}>{inputHr} BPM</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase' }}>💨 SpO₂</div>
+                    <div style={{ color: '#1e293b', fontSize: '1.3rem', fontWeight: 'bold', marginTop: '0.25rem' }}>{inputSpo2} %</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase' }}>🌡️ Temperature</div>
+                    <div style={{ color: '#1e293b', fontSize: '1.3rem', fontWeight: 'bold', marginTop: '0.25rem' }}>{inputTemp} °C</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase' }}>📊 Blood Pressure</div>
+                    <div style={{ color: '#1e293b', fontSize: '1.3rem', fontWeight: 'bold', marginTop: '0.25rem' }}>{inputBpSystolic}/{inputBpDiastolic} mmHg</div>
+                  </div>
+                </div>
               </div>
+
+              {agentScanError && (
+                <div style={{ padding: '0.9rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                  {agentScanError}
+                </div>
+              )}
+
+              {!agentScanResult && !agentScanLoading && !agentScanError && (
+                <p style={{ color: '#64748b', marginBottom: '0.5rem' }}>Run scan to view Monitoring, Diagnosis, Debate, Explanation, Action, and Emergency agent outputs.</p>
+              )}
+
+              {agentScanResult && (
+                <>
+                  <div className="ai-debate" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+                    <h3 style={{ color: '#7C3AED', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
+                      <span>⚖️</span> Debate AI Response
+                    </h3>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {[
+                        { key: 'monitoring', icon: '📈', color: '#38bdf8', label: 'Monitoring Agent', bg: '#eff6ff', text: agentScanResult.debate?.monitoring_view },
+                        { key: 'diagnosis', icon: '🩺', color: '#f472b6', label: 'Diagnosis Agent', bg: '#fdf2f8', text: agentScanResult.debate?.diagnosis_view },
+                        { key: 'debate', icon: '⚖️', color: '#c084fc', label: 'Debate Coordinator', bg: '#faf5ff', text: `Consensus reached (Disagreement score: ${agentScanResult.disagreement_score}/10)\n${agentScanResult.debate?.consensus || agentScanResult.consensus}` },
+                        { key: 'explanation', icon: '🗣️', color: '#fbbf24', label: 'Explanation Agent', bg: '#fefce8', text: agentScanResult.explanation?.voice_summary || agentScanResult.voice_summary },
+                        { key: 'actions', icon: '⚡', color: '#22c55e', label: 'Action Agent', bg: '#f0fdf4', text: (agentScanResult.actions || []).map((a, i) => `${i + 1}. ${a}`).join('\n') },
+                        { key: 'emergency', icon: '🚨', color: '#ef4444', label: 'Emergency Agent', bg: '#fef2f2', text: `Urgency: ${agentScanResult.emergency?.urgency_note}\nDispatch Alert: ${agentScanResult.emergency?.dispatch_alert ? 'YES ⚠️' : 'NO ✓'}` },
+                      ].filter(item => item.text).map(item => (
+                        <div key={item.key} style={{ background: item.bg, padding: '1rem 1.2rem', borderRadius: '12px', borderLeft: `4px solid ${item.color}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '1.2rem' }}>{item.icon}</span>
+                            <strong style={{ color: item.color, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                              {item.label}
+                            </strong>
+                          </div>
+                          <p style={{ color: '#374151', margin: 0, fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                            {item.text}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b', gap: '1rem', flexWrap: 'wrap' }}>
+                      <span>Disagreement Score: <strong style={{ color: '#c084fc' }}>{agentScanResult.disagreement_score}/10</strong></span>
+                      <span>EWS: <strong style={{ color: agentScanResult.ews?.colour || '#22c55e' }}>{agentScanResult.ews?.level?.toUpperCase()}</strong></span>
+                      <span>Emergency Override: <strong style={{ color: agentScanResult.emergency?.dispatch_alert ? '#ef4444' : '#22c55e' }}>{agentScanResult.emergency?.dispatch_alert ? 'YES' : 'NO'}</strong></span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </>
         ) : (
