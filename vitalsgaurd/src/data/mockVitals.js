@@ -213,5 +213,55 @@ export const patients = [
       { time: '08:00', hr: 60, spo2: 93, temp: 35.8, bp: 105, status: 'warning' }
     ],
     conditions: ['Geriatric Monitoring']
+  },
+  {
+    id: 'p21',
+    name: 'Nandini V',
+    age: 47,
+    role: 'patient',
+    vitals: [
+      { time: '08:00', hr: 86, spo2: 95, temp: 37.3, bp: 136, status: 'warning' }
+    ],
+    conditions: ['Post-op respiratory watch']
+  },
+  {
+    id: 'p22',
+    name: 'Imran Q',
+    age: 57,
+    role: 'patient',
+    vitals: [
+      { time: '08:00', hr: 98, spo2: 91, temp: 38.1, bp: 152, status: 'critical' }
+    ],
+    conditions: ['COPD exacerbation']
+  },
+  {
+    id: 'p23',
+    name: 'Priya N',
+    age: 33,
+    role: 'patient',
+    vitals: [
+      { time: '08:00', hr: 72, spo2: 99, temp: 36.5, bp: 116, status: 'stable' }
+    ],
+    conditions: ['Observation only']
+  },
+  {
+    id: 'p24',
+    name: 'Oliver M',
+    age: 64,
+    role: 'patient',
+    vitals: [
+      { time: '08:00', hr: 90, spo2: 94, temp: 37.4, bp: 144, status: 'warning' }
+    ],
+    conditions: ['Cardiac telemetry']
+  },
+  {
+    id: 'p25',
+    name: 'Asha R',
+    age: 44,
+    role: 'patient',
+    vitals: [
+      { time: '08:00', hr: 78, spo2: 97, temp: 36.9, bp: 124, status: 'stable' }
+    ],
+    conditions: ['General ward follow-up']
   }
 ];

@@ -58,7 +58,7 @@ export function ShinyButton({
   ...props
 }) {
   const glowVariants = {
-    blue: 'border-blue-500/30 text-blue-400 hover:text-blue-300',
+    blue: 'border-blue-500/30 text-blue-600 hover:text-blue-600',
     green: 'border-emerald-500/30 text-emerald-400 hover:text-emerald-300',
     pink: 'border-pink-500/30 text-pink-400 hover:text-pink-300',
     white: 'border-white/20 text-slate-300 hover:text-white',

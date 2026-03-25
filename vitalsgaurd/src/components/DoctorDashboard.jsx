@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import HealthCard from './HealthCard';
 import CriticalOverlay from './CriticalOverlay';
+import { Header } from './Header';
+import { Footer } from './Footer';
+import { Button, ShinyButton } from './ui/button';
+import { AlertTriangle, Sparkles, UserMinus } from 'lucide-react';
 import { patients as initialPatients } from '../data/mockVitals';
 import axios from 'axios';
 
@@ -88,7 +92,7 @@ export default function DoctorDashboard({ onLogout }) {
     }
 
     function handleDischarge(patientId, e) {
-        e.stopPropagation(); // Prevent selecting the patient when clicking discharge
+        if (e?.stopPropagation) e.stopPropagation();
         if (window.confirm("Are you sure you want to discharge this patient? This will remove them from the active monitoring list.")) {
             setPatientsList(prev => {
                 const newList = prev.filter(p => p.id !== patientId);
@@ -169,27 +173,62 @@ export default function DoctorDashboard({ onLogout }) {
     if (!activePatient && patientsList.length === 0) {
         return (
             <div className="dashboard normal" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-                <h1 style={{ color: '#7C3AED' }}>No Active Patients</h1>
+                <h1 style={{ color: '#2f77d6' }}>No Active Patients</h1>
                 <p style={{ color: '#64748b' }}>All patients have been discharged.</p>
-                <button onClick={onLogout} style={{ marginTop: '20px', padding: '10px 20px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Logout</button>
+                <button onClick={onLogout} style={{ marginTop: '20px', padding: '10px 20px', background: '#2f77d6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Logout</button>
             </div>
         );
     }
 
     return (
-        <div className={`dashboard ${mode}`}>
-            <header className="premium-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <div style={{ fontSize: '24px' }}>🏥</div>
-                    <h1 style={{ margin: 0, color: '#7C3AED', fontSize: '1.5rem', fontWeight: 'bold' }}>Doctor Command Center</h1>
-                </div>
-                    <button className="nav-pill logout" onClick={onLogout}>Logout</button>
-            </header>
+        <div className={`dashboard ${mode}`} style={{ minHeight: '100vh', maxWidth: 'none', margin: 0, padding: 0, position: 'relative', overflowX: 'hidden', background: 'linear-gradient(135deg, #eef7ff 0%, #e3f1ff 34%, #f3f9ff 62%, #eef7ff 100%)', color: '#173b67' }}>
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background:
+                            'radial-gradient(circle at top left, rgba(121,184,255,0.34), transparent 35%), radial-gradient(circle at left center, rgba(174,216,255,0.28), transparent 42%), radial-gradient(circle at center center, rgba(121,184,255,0.12), transparent 45%), radial-gradient(circle at top right, rgba(174,216,255,0.18), transparent 33%), radial-gradient(circle at bottom left, rgba(121,184,255,0.2), transparent 30%), radial-gradient(circle at bottom right, rgba(214,234,255,0.18), transparent 30%)',
+                    }}
+                />
+                <div style={{ position: 'absolute', width: 620, height: 132, borderRadius: 999, left: '-6%', top: '14%', background: 'linear-gradient(135deg, rgba(121,184,255,0.38), rgba(205,232,255,0.24), rgba(255,255,255,0.18))', border: '1px solid rgba(255,255,255,0.7)' }} />
+                <div style={{ position: 'absolute', width: 360, height: 88, borderRadius: 999, right: '2%', top: '17%', background: 'linear-gradient(135deg, rgba(109,173,245,0.26), rgba(255,255,255,0.26))', border: '1px solid rgba(255,255,255,0.7)' }} />
+                <div style={{ position: 'absolute', width: 420, height: 104, borderRadius: 999, left: '8%', bottom: '16%', background: 'linear-gradient(135deg, rgba(121,184,255,0.25), rgba(214,234,255,0.22), rgba(255,255,255,0.2))', border: '1px solid rgba(255,255,255,0.65)' }} />
+                <div style={{ position: 'absolute', width: 240, height: 70, borderRadius: 999, right: '12%', bottom: '12%', background: 'linear-gradient(135deg, rgba(255,255,255,0.28), rgba(121,184,255,0.24), rgba(214,234,255,0.18))', border: '1px solid rgba(255,255,255,0.65)' }} />
+            </div>
 
-            <section className="doctor-top-row">
-                <div className="patient-list premium-card">
-                    <h2 style={{ color: '#7C3AED', marginBottom: '1.5rem', fontSize: '1.1rem', fontWeight: '800' }}>In-Patient Assignments</h2>
-                    <ul style={{ listStyle: 'none', padding: 0 }}>
+            <div style={{ position: 'relative', zIndex: 10 }}>
+                <Header
+                    links={[
+                        { label: 'Overview', href: '/doctor' },
+                        { label: 'Research', href: '/doctor/research' },
+                        { label: 'Policy', href: '/doctor/policy' },
+                    ]}
+                />
+
+                <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0.65rem 1.5rem 0.35rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #79b8ff, #d2e9ff)', boxShadow: '0 8px 16px rgba(121,184,255,0.16)', fontSize: 20 }}>🏥</div>
+                            <div>
+                                <h1 style={{ margin: 0, color: '#1c4372', fontSize: '1.35rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Doctor <span style={{ color: '#2f77d6' }}>Command Center</span></h1>
+                                <p style={{ margin: '2px 0 0', color: '#5f7fa6', fontSize: '12px', fontWeight: 600 }}>Pleasant, calm access for connected care teams</p>
+                            </div>
+                        </div>
+                        <Button
+                            onClick={onLogout}
+                            variant="outline"
+                            className="h-9 px-5 rounded-full border-blue-300 bg-white/80 text-blue-600 hover:bg-blue-50 shadow-sm"
+                        >
+                            Logout
+                        </Button>
+                    </div>
+                </div>
+
+            <section className="doctor-top-row" style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 1.5rem 1.5rem' }}>
+                <div className="patient-list premium-card" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(121,184,255,0.24)', backdropFilter: 'blur(10px)', borderRadius: '22px', boxShadow: '0 10px 30px rgba(23,59,103,0.06)', height: 'calc(100vh - 170px)', minHeight: 520, display: 'flex', flexDirection: 'column' }}>
+                    <h2 style={{ color: '#2f77d6', marginBottom: '1rem', fontSize: '1.05rem', fontWeight: '800' }}>In-Patient Assignments</h2>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingRight: '6px', paddingBottom: '110px', scrollBehavior: 'smooth', scrollbarGutter: 'stable' }}>
                         {[...patientsList]
                             .sort((a, b) => {
                                 const statusPriority = { critical: 0, warning: 1, stable: 2 };
@@ -203,66 +242,90 @@ export default function DoctorDashboard({ onLogout }) {
                                     className={`patient-item ${p.id === activePatientId ? 'active' : ''}`} 
                                 onClick={() => examineVitals(p.id)}
                                 style={{
-                                    padding: '1rem',
+                                    padding: '0.85rem',
                                     borderRadius: '12px',
-                                    marginBottom: '0.75rem',
+                                    marginBottom: '0.55rem',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s',
-                                    border: p.id === activePatientId ? '2px solid #7C3AED' : '1px solid #e2e8f0',
-                                    backgroundColor: p.id === activePatientId ? '#f5f3ff' : '#fff',
+                                    border: p.id === activePatientId ? '2px solid #ef4444' : '1px solid #d9e8fb',
+                                    backgroundColor: p.id === activePatientId ? '#fff1f2' : '#fff',
                                     display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
+                                    flexDirection: 'column',
+                                    gap: '0.5rem'
                                 }}
                             >
-                                <div>
-                                    <div style={{ fontWeight: '700', color: '#1e293b' }}>{p.name}</div>
-                                    <small style={{ color: '#64748b' }}>Age {p.age} • <span style={{ color: p.vitals[p.vitals.length-1].status === 'critical' ? '#ef4444' : '#22c55e' }}>{p.vitals[p.vitals.length-1].status}</span></small>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>{p.name}</div>
+                                    <Button
+                                        onClick={(e) => handleDischarge(p.id, e)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-[8px] h-6 px-2 border-blue-300 text-blue-600 hover:bg-blue-50 whitespace-nowrap"
+                                        style={{ marginLeft: 'auto' }}
+                                    >
+                                        <UserMinus className="w-2 h-2" />
+                                        Discharge
+                                    </Button>
                                 </div>
-                                <button 
-                                    onClick={(e) => handleDischarge(p.id, e)}
-                                    style={{
-                                        padding: '4px 8px',
-                                        fontSize: '0.7rem',
-                                        background: '#fee2e2',
-                                        color: '#991b1b',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        fontWeight: '700',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Discharge
-                                </button>
+                                <small style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                                    <span>Age {p.age}</span>
+                                    <span>•</span>
+                                    <span
+                                        style={{
+                                            fontSize: '9px',
+                                            textTransform: 'uppercase',
+                                            fontWeight: 800,
+                                            letterSpacing: '0.05em',
+                                            padding: '2px 8px',
+                                            borderRadius: '999px',
+                                            background: p.vitals[p.vitals.length-1].status === 'critical' ? '#fee2e2' : p.vitals[p.vitals.length-1].status === 'warning' ? '#fff7ed' : '#ecfdf5',
+                                            color: p.vitals[p.vitals.length-1].status === 'critical' ? '#b91c1c' : p.vitals[p.vitals.length-1].status === 'warning' ? '#b45309' : '#166534',
+                                        }}
+                                    >
+                                        {p.vitals[p.vitals.length-1].status}
+                                    </span>
+                                </small>
                             </li>
                         ))}
+                        <li aria-hidden="true" style={{ height: '90px', pointerEvents: 'none' }} />
                     </ul>
                 </div>
 
-                <div className="patient-summary">
+                <div className="patient-summary" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(121,184,255,0.24)', backdropFilter: 'blur(10px)', borderRadius: '22px', boxShadow: '0 10px 30px rgba(23,59,103,0.06)', padding: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <div>
                             <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#1e293b' }}>{activePatient.name} <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 'normal' }}>• Real-Time Monitoring</span></h2>
                         </div>
-                        <button
-                            onClick={runDoctorAnalysis}
-                            disabled={analyzing}
-                            className="premium-btn primary"
-                            style={{ padding: '0.7rem 1.5rem', backgroundColor: '#7C3AED', color: 'white', border: 'none', borderRadius: '10px', cursor: analyzing ? 'not-allowed' : 'pointer', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(124, 58, 237, 0.2)' }}
-                        >
-                            {analyzing ? 'Scanning Clinical Data...' : 'Run Phidata Agent Scan ✨'}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <Button
+                                onClick={runDoctorAnalysis}
+                                disabled={analyzing}
+                                variant="outline"
+                                className="h-10 px-5 border-blue-300 text-blue-600 hover:bg-blue-50"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                {analyzing ? 'Scanning Clinical Data...' : 'Run Phidata Agent Scan ✨'}
+                            </Button>
+                            <Button
+                                onClick={() => handleDischarge(activePatient.id)}
+                                variant="outline"
+                                className="h-10 px-5 border-blue-300 text-blue-600 hover:bg-blue-50"
+                            >
+                                <UserMinus className="w-4 h-4" />
+                                Discharge Patient
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="health-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                        <HealthCard title="Heart Rate" value={latest.hr} unit=" BPM" severity={latest.status} icon="❤️" />
-                        <HealthCard title="SpO2" value={latest.spo2} unit=" %" severity={latest.status} icon="🩸" />
-                        <HealthCard title="Temperature" value={latest.temp} unit=" °C" severity={latest.status} icon="🌡️" />
-                        <HealthCard title="Blood Pressure" value={latest.bp} unit=" mmHg" severity={latest.status} icon="📊" />
+                    <div className="health-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                        <HealthCard title="Heart Rate" value={latest.hr} unit="BPM" severity={latest.status} icon="❤️" />
+                        <HealthCard title="Temperature" value={latest.temp} unit="°C" severity={latest.status} icon="🌡️" />
+                        <HealthCard title="SpO2" value={latest.spo2} unit="%" severity={latest.status} icon="💨" />
+                        <HealthCard title="Blood Pressure" value={latest.bp} unit="mmHg" severity={latest.status} icon="📊" />
                     </div>
 
-                    <div className="chart-area premium-card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
-                        <h4 style={{ margin: '0 0 1rem 0', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📈 Vitals Trend Trajectory</h4>
+                    <div className="chart-area premium-card" style={{ padding: '1.5rem', marginTop: '1.5rem', background: '#ffffff', border: '1px solid #e8d4e0', borderRadius: '18px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                        <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1rem', fontWeight: '700', marginBottom: '1.5rem' }}>📈 Live Vitals Monitor</h4>
                         <ResponsiveContainer width="100%" height={280}>
                             <LineChart data={activePatient.vitals}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -270,17 +333,17 @@ export default function DoctorDashboard({ onLogout }) {
                                 <YAxis tick={{fontSize: 10}} />
                                 <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                 <Legend iconType="circle" />
-                                <Line type="monotone" dataKey="hr" stroke="#ef4444" strokeWidth={3} name="Heart Rate" dot={false} activeDot={{ r: 6 }} />
-                                <Line type="monotone" dataKey="spo2" stroke="#3b82f6" strokeWidth={3} name="SpO2" dot={false} activeDot={{ r: 6 }} />
-                                <Line type="monotone" dataKey="temp" stroke="#f59e0b" strokeWidth={3} name="Temp" dot={false} activeDot={{ r: 6 }} />
-                                <Line type="monotone" dataKey="bp" stroke="#8b5cf6" strokeWidth={3} name="BP (mmHg)" dot={false} activeDot={{ r: 6 }} />
+                                <Line type="monotone" dataKey="hr" stroke="#ef4444" strokeWidth={2.5} name="Heart Rate (BPM)" dot={false} activeDot={{ r: 6 }} />
+                                <Line type="monotone" dataKey="spo2" stroke="#3b82f6" strokeWidth={2.5} name="SpO2 (%)" dot={false} activeDot={{ r: 6 }} />
+                                <Line type="monotone" dataKey="temp" stroke="#f59e0b" strokeWidth={2.5} name="Temperature (°C)" dot={false} activeDot={{ r: 6 }} />
+                                <Line type="monotone" dataKey="bp" stroke="#10a89a" strokeWidth={2.5} name="BP Systolic (mmHg)" dot={false} activeDot={{ r: 6 }} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
 
                     {scanResult && (
-                        <div className="ai-debate premium-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', marginTop: '1.5rem' }}>
-                            <h3 style={{ color: '#7C3AED', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', fontWeight: '800' }}>
+                        <div className="ai-debate premium-card" style={{ background: '#fff', border: '1px solid #d9e8fb', borderRadius: '16px', padding: '1.5rem', marginTop: '1.5rem' }}>
+                            <h3 style={{ color: '#2f77d6', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', fontWeight: '800' }}>
                                 <span>⚖️</span> Multi-Agent Clinical Consensus
                             </h3>
 
@@ -288,7 +351,7 @@ export default function DoctorDashboard({ onLogout }) {
                                 {[
                                     { key: 'monitoring', icon: '📈', color: '#0ea5e9', label: 'Monitoring Agent', bg: '#f0f9ff', text: scanResult.debate?.monitoring_view },
                                     { key: 'diagnosis', icon: '🩺', color: '#db2777', label: 'Diagnosis Agent', bg: '#fdf2f8', text: scanResult.debate?.diagnosis_view },
-                                    { key: 'debate', icon: '⚖️', color: '#9333ea', label: 'Debate Coordinator', bg: '#faf5ff', text: `Consensus reached (Disagreement score: ${scanResult.disagreement_score}/10)\n${scanResult.debate?.consensus || scanResult.consensus}` },
+                                    { key: 'debate', icon: '⚖️', color: '#1d4ed8', label: 'Debate Coordinator', bg: '#eff6ff', text: `Consensus reached (Disagreement score: ${scanResult.disagreement_score}/10)\n${scanResult.debate?.consensus || scanResult.consensus}` },
                                     { key: 'explanation', icon: '🗣️', color: '#d97706', label: 'Explanation Agent', bg: '#fffbeb', text: scanResult.explanation?.voice_summary || scanResult.voice_summary },
                                     { key: 'actions', icon: '⚡', color: '#16a34a', label: 'Action Agent', bg: '#f0fdf4', text: (scanResult.actions || []).map((a, i) => `${i + 1}. ${a}`).join('\n') },
                                     { key: 'emergency', icon: '🚨', color: '#dc2626', label: 'Emergency Agent', bg: '#fef2f2', text: `Urgency: ${scanResult.emergency?.urgency_note}\nDispatch Alert: ${scanResult.emergency?.dispatch_alert ? 'YES ⚠️' : 'NO ✓'}` },
@@ -308,7 +371,7 @@ export default function DoctorDashboard({ onLogout }) {
                             </div>
 
                             <div style={{ marginTop: '1.5rem', paddingTop: '1.2rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>
-                                <span>Disagreement: <strong style={{ color: '#9333ea' }}>{scanResult.disagreement_score}/10</strong></span>
+                                <span>Disagreement: <strong style={{ color: '#1d4ed8' }}>{scanResult.disagreement_score}/10</strong></span>
                                 <span>Clinical EWS: <strong style={{ color: scanResult.ews?.colour || '#16a34a' }}>{scanResult.ews?.level?.toUpperCase()}</strong></span>
                                 <span>Emergency Dispatch: <strong style={{ color: scanResult.emergency?.dispatch_alert ? '#dc2626' : '#16a34a' }}>{scanResult.emergency?.dispatch_alert ? 'YES' : 'NO'}</strong></span>
                             </div>
@@ -326,35 +389,21 @@ export default function DoctorDashboard({ onLogout }) {
                                     width: '100%',
                                     padding: '0.8rem 1rem',
                                     borderRadius: '10px',
-                                    border: '1.5px solid #e2e8f0',
+                                    border: '1.5px solid #d9e8fb',
                                     marginBottom: '0.5rem',
                                     fontSize: '14px',
                                     outline: 'none',
                                     transition: 'border-color 0.2s',
-                                    background: activeAlerts[activePatient.id] ? '#f8fafc' : 'white'
+                                    background: activeAlerts[activePatient.id] ? '#f3f7fc' : 'white'
                                 }}
                                 disabled={!!activeAlerts[activePatient.id]}
                             />
-                            <button 
-                                className="premium-btn emergency" 
+                            <ShinyButton
                                 onClick={handleEmergencyAlert}
                                 disabled={!!activeAlerts[activePatient.id]}
-                                style={{ 
-                                    width: '100%', 
-                                    padding: '1rem', 
-                                    background: activeAlerts[activePatient.id] ? '#475569' : '#dc2626', 
-                                    color: 'white', 
-                                    border: 'none', 
-                                    borderRadius: '10px', 
-                                    fontWeight: '800', 
-                                    cursor: activeAlerts[activePatient.id] ? 'not-allowed' : 'pointer',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '1px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '10px'
-                                }}
+                                variant={activeAlerts[activePatient.id] ? 'white' : 'pink'}
+                                icon={<AlertTriangle className="w-4 h-4" />}
+                                className="w-full h-11 text-[11px] uppercase tracking-[0.08em]"
                             >
                                 {activeAlerts[activePatient.id] ? (
                                     <>
@@ -364,31 +413,46 @@ export default function DoctorDashboard({ onLogout }) {
                                 ) : (
                                     <>🚨 Trigger Clinical Dispatch</>
                                 )}
-                            </button>
+                            </ShinyButton>
                         </div>
-                        <button 
-                            onClick={(e) => handleDischarge(activePatient.id, e)}
-                            style={{ 
-                                padding: '1rem 2rem', 
-                                background: '#fff', 
-                                color: '#64748b', 
-                                border: '1px solid #e2e8f0', 
-                                borderRadius: '10px', 
-                                fontWeight: '700', 
-                                cursor: 'pointer' 
-                            }}
-                        >
-                            Discharge Patient
-                        </button>
                     </div>
                 </div>
-            </section>
+                </section>
+
+                <Footer
+                    fluid
+                    links={[
+                        { label: 'Home', href: '/' },
+                        { label: 'Doctor Dashboard', href: '/doctor' },
+                        { label: 'Research', href: '/doctor/research' },
+                        { label: 'Policy', href: '/doctor/policy' },
+                    ]}
+                />
+            </div>
             <style>
                 {`
                     @keyframes pulse {
                         0% { opacity: 1; transform: scale(1); }
                         50% { opacity: 0.7; transform: scale(0.95); }
                         100% { opacity: 1; transform: scale(1); }
+                    }
+
+                    .patient-list ul::-webkit-scrollbar {
+                        width: 8px;
+                    }
+
+                    .patient-list ul::-webkit-scrollbar-track {
+                        background: rgba(121,184,255,0.12);
+                        border-radius: 999px;
+                    }
+
+                    .patient-list ul::-webkit-scrollbar-thumb {
+                        background: rgba(47,119,214,0.35);
+                        border-radius: 999px;
+                    }
+
+                    .patient-list ul::-webkit-scrollbar-thumb:hover {
+                        background: rgba(47,119,214,0.55);
                     }
                 `}
             </style>

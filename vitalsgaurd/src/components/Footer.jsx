@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { ArrowRight, Mail, MapPin, Phone } from 'lucide-react';
 
-export function Footer({ links = [] }) {
+export function Footer({ links = [], fluid = false }) {
   const navigate = useNavigate();
 
   const defaultLinks = [
@@ -25,7 +25,7 @@ export function Footer({ links = [] }) {
   return (
     <footer className="relative mt-24 border-t border-white/10 bg-[#0f172a] overflow-hidden w-full">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.06),transparent_40%)]" />
-      <div className="max-w-[1600px] mx-auto px-8 py-16 relative z-10">
+      <div className={`${fluid ? 'w-full px-8 md:px-10 lg:px-12 py-16' : 'max-w-[1600px] mx-auto px-8 py-16'} relative z-10`}>
         {/* Footer Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-16">
           {/* Brand Section */}

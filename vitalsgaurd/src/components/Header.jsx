@@ -45,9 +45,9 @@ export function Header({ links = [] }) {
 	return (
 		<header
 			className={cn(
-				'sticky top-0 z-50 mx-auto w-full max-w-5xl border-b border-transparent md:rounded-md md:border md:transition-all md:ease-out',
+				'sticky top-0 z-50 mx-auto w-full max-w-3xl border-b border-transparent md:rounded-md md:border md:transition-all md:ease-out',
 				{
-					'bg-background/95 supports-[backdrop-filter]:bg-background/50 border-border backdrop-blur-lg md:top-4 md:max-w-4xl md:shadow':
+					'bg-background/95 supports-[backdrop-filter]:bg-background/50 border-border backdrop-blur-lg md:top-4 md:max-w-2xl md:shadow':
 						scrolled && !open,
 					'bg-background/90': open,
 				},
@@ -55,20 +55,20 @@ export function Header({ links = [] }) {
 		>
 			<nav
 				className={cn(
-					'flex h-14 w-full items-center justify-between px-4 md:h-12 md:transition-all md:ease-out',
+					'flex h-12 w-full items-center justify-between px-4 md:h-11 md:transition-all md:ease-out',
 					{
 						'md:px-2': scrolled,
 					},
 				)}
 			>
 				<WordmarkIcon className="h-4" />
-				<div className="hidden items-center gap-2 md:flex">
+				<div className="hidden items-center gap-1.5 md:flex">
 					{navLinks.map((link, i) => {
             const isAdminLink = ['Overview', 'Research', 'Policy'].includes(link.label);
             if (isAdminLink) {
               return (
                 <Link key={i} to={link.href}>
-                  <ShinyButton variant="blue" className="h-9 px-4 text-xs">
+                  <ShinyButton variant="blue" className="h-8 px-3.5 text-[11px]">
                     {link.label}
                   </ShinyButton>
                 </Link>
@@ -80,8 +80,6 @@ export function Header({ links = [] }) {
               </Link>
             );
           })}
-					<ShinyButton variant="blue" className="h-9 min-w-[100px]">Sign In</ShinyButton>
-					<ShinyButton variant="blue" className="h-9 min-w-[120px]">Get Started</ShinyButton>
 				</div>
 				<Button size="icon" variant="outline" onClick={() => setOpen(!open)} className="md:hidden">
 					<MenuToggleIcon open={open} className="size-5" duration={300} />
@@ -115,12 +113,7 @@ export function Header({ links = [] }) {
 							</Link>
 						))}
 					</div>
-					<div className="flex flex-col gap-2">
-						<ShinyButton variant="blue" className="w-full">
-							Sign In
-						</ShinyButton>
-						<ShinyButton variant="blue" className="w-full">Get Started</ShinyButton>
-					</div>
+					<div className="flex flex-col gap-2" />
 				</div>
 			</div>
 		</header>
