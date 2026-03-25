@@ -1,9 +1,159 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { patients } from '../data/mockVitals';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { Header } from './Header';
+import { Footer } from './Footer';
+import { LogOut, Activity, Plus, ArrowRight, Shield, HeartPulse } from 'lucide-react';
+import { Button, ShinyButton } from './ui/button';
+
+function ElegantShape({
+  delay = 0,
+  width = 400,
+  height = 100,
+  rotate = 0,
+  gradient = "linear-gradient(135deg, rgba(16,185,129,0.48), rgba(167,243,208,0.34), rgba(255,255,255,0.24))",
+  style,
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -120, rotate: rotate - 12 }}
+      animate={{ opacity: 1, y: 0, rotate }}
+      transition={{
+        duration: 2,
+        delay,
+        ease: [0.23, 0.86, 0.39, 0.96],
+        opacity: { duration: 1.1 },
+      }}
+      style={{ position: "absolute", ...style }}
+    >
+      <motion.div
+        animate={{ y: [0, 16, 0] }}
+        transition={{ duration: 12, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        style={{ width, height, position: "relative" }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            background: gradient,
+            border: "1.5px solid rgba(255,255,255,0.72)",
+            boxShadow: "0 34px 90px rgba(16,185,129,0.3)",
+            backdropFilter: "blur(10px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            background:
+              "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.56), rgba(209,250,229,0.18) 42%, transparent 70%)",
+          }}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const defaultGradientColors = {
+  primary: '#10b981',
+  secondary: '#34d399',
+  accent: '#f7a7c0',
+};
+
+const BorderRotate = ({
+  children,
+  className = '',
+  animationMode = 'auto-rotate',
+  animationSpeed = 6,
+  gradientColors = defaultGradientColors,
+  backgroundColor = 'rgba(255, 255, 255, 0.92)',
+  borderWidth = 2,
+  borderRadius = 20,
+  style = {},
+  ...props
+}) => {
+  const getAnimationClass = () => {
+    switch (animationMode) {
+      case 'auto-rotate':
+        return 'gradient-border-auto';
+      case 'rotate-on-hover':
+        return 'gradient-border-hover';
+      case 'stop-rotate-on-hover':
+        return 'gradient-border-stop-hover';
+      default:
+        return '';
+    }
+  };
+
+  const combinedStyle = {
+    '--border-width': `${borderWidth}px`,
+    '--border-radius': `${borderRadius}px`,
+    '--animation-duration': `${animationSpeed}s`,
+    '--primary': gradientColors.primary,
+    '--secondary': gradientColors.secondary,
+    '--accent': gradientColors.accent,
+    '--bg-color': backgroundColor,
+    border: `${borderWidth}px solid transparent`,
+    borderRadius: `${borderRadius}px`,
+    backgroundImage: `
+      linear-gradient(${backgroundColor}, ${backgroundColor}),
+      conic-gradient(${gradientColors.primary}, ${gradientColors.secondary}, ${gradientColors.accent}, ${gradientColors.secondary}, ${gradientColors.primary})
+    `,
+    backgroundClip: 'padding-box, border-box',
+    backgroundOrigin: 'padding-box, border-box',
+    ...style,
+  };
+
+  return (
+    <div
+      className={`gradient-border-component ${getAnimationClass()} ${className}`}
+      style={combinedStyle}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
 
 export default function AdminDashboard({ onLogout }) {
+  const navigate = useNavigate();
+  const [infra, setInfra] = useState({
+    voltage: 231,
+    load: 62,
+    powerSource: 'Main Grid',
+    o2Pressure: 84,
+    n2oLevel: 12.5,
+    medAir: 46
+  });
+
+  const [emergencyCalls, setEmergencyCalls] = useState([
+    { id: 1, doctor: 'Dr. Sarah Chen', location: 'ICU Ward B', alert: 'Code Blue', time: '10:42 AM', urgency: 'critical' },
+    { id: 2, doctor: 'Dr. Rajesh Kumar', location: 'Emergency Bay 4', alert: 'Trauma Alpha', time: '10:45 AM', urgency: 'critical' },
+    { id: 3, doctor: 'Dr. Vishal Aishu', location: 'Operating Room 2', alert: 'Instrument Failure', time: '10:50 AM', urgency: 'high' },
+  ]);
+  const [acknowledgingIds, setAcknowledgingIds] = useState([]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setInfra(prev => ({
+        voltage: Math.round(230 + (Math.random() * 4 - 2)),
+        load: Math.round(60 + (Math.random() * 6 - 3)),
+        powerSource: Math.random() > 0.99 ? 'Backup Gen' : 'Main Grid',
+        o2Pressure: Math.round(85 + (Math.random() * 6 - 3)),
+        n2oLevel: parseFloat((12 + Math.random()).toFixed(1)),
+        medAir: Math.round(45 + (Math.random() * 4 - 2))
+      }));
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
   const counts = patients.reduce(
     (acc, patient) => {
       acc[patient.vitals[patient.vitals.length - 1].status] += 1;
@@ -18,111 +168,386 @@ export default function AdminDashboard({ onLogout }) {
     { name: 'Critical', value: counts.critical }
   ];
 
-  const COLORS = ['#10b981', '#f97316', '#dc2626'];
+  const COLORS = ['#10b981', '#f59e0b', '#ef4444'];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f3ff', fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
-      {/* Header */}
-      <header style={{ background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', padding: '1.5rem 2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '24px' }}>🏥</span>
-            <h1 style={{ color: '#7C3AED', margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>Hospital Administration</h1>
-          </div>
-          <button onClick={onLogout} style={{ padding: '0.6rem 1.2rem', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
-            Logout
-          </button>
-        </div>
-      </header>
+    <div style={{ minHeight: '100vh', position: 'relative', overflowX: 'hidden', background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 34%, #ecfdf5 62%, #f0fdf4 100%)", color: '#0f2d58', fontFamily: "'Inter', sans-serif" }}>
+      
+      {/* High-Fidelity Geometry Background Layer */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0, pointerEvents: "none" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(circle at top left, rgba(16,185,129,0.36), transparent 34%), radial-gradient(circle at left center, rgba(52,211,153,0.22), transparent 42%), radial-gradient(circle at center center, rgba(16,185,129,0.12), transparent 46%), radial-gradient(circle at top right, rgba(52,211,153,0.14), transparent 34%), radial-gradient(circle at bottom left, rgba(16,185,129,0.18), transparent 32%), radial-gradient(circle at bottom right, rgba(134,215,195,0.12), transparent 26%)",
+          }}
+        />
+        <ElegantShape
+          delay={0.2}
+          width={620}
+          height={138}
+          rotate={12}
+          gradient="linear-gradient(135deg, rgba(16,185,129,0.42), rgba(167,243,208,0.28), rgba(255,255,255,0.2))"
+          style={{ left: "-6%", top: "12%" }}
+        />
+        <ElegantShape
+          delay={0.35}
+          width={360}
+          height={92}
+          rotate={-18}
+          gradient="linear-gradient(135deg, rgba(20,184,166,0.32), rgba(255,255,255,0.26))"
+          style={{ right: "2%", top: "16%" }}
+        />
+        <ElegantShape
+          delay={0.5}
+          width={420}
+          height={108}
+          rotate={-10}
+          gradient="linear-gradient(135deg, rgba(5,150,105,0.28), rgba(209,250,229,0.18), rgba(255,255,255,0.2))"
+          style={{ left: "8%", bottom: "16%" }}
+        />
+        <ElegantShape
+          delay={0.65}
+          width={240}
+          height={70}
+          rotate={20}
+          gradient="linear-gradient(135deg, rgba(255,255,255,0.28), rgba(16,185,129,0.32), rgba(167,243,208,0.18))"
+          style={{ right: "12%", bottom: "12%" }}
+        />
+      </div>
 
-      {/* Main Content */}
-      <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-        {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: '4px solid #3B82F6' }}>
-            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '8px', fontWeight: '600' }}>👥 ACTIVE PATIENTS</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#3B82F6' }}>{patients.length}</div>
-          </div>
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: '4px solid #F97316' }}>
-            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '8px', fontWeight: '600' }}>⚠️ WARNINGS</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#F97316' }}>{counts.warning}</div>
-          </div>
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: '4px solid #DC2626' }}>
-            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '8px', fontWeight: '600' }}>🚨 CRITICAL</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#DC2626' }}>{counts.critical}</div>
-          </div>
-        </div>
+      <div style={{ position: "relative", zIndex: 10 }}>
+        <Header 
+          links={[
+            { label: 'Overview', href: '/admin' },
+            { label: 'Research', href: '/admin/research' },
+            { label: 'Policy', href: '/admin/policy' },
+          ]}
+        />
 
-        {/* Charts Section */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-          {/* Pie Chart */}
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <h3 style={{ color: '#7C3AED', margin: '0 0 1.5rem 0' }}>📊 Patient Status Distribution</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie dataKey="value" data={chartData} cx="50%" cy="50%" outerRadius={80} label>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${entry.name}`} fill={COLORS[index]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Stats Card */}
-          <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <h3 style={{ color: '#7C3AED', margin: '0 0 1.5rem 0' }}>📈 System Health</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ color: '#666', fontSize: '0.9rem' }}>System Uptime</span>
-                  <span style={{ fontWeight: 'bold', color: '#10b981' }}>99.9%</span>
-                </div>
-                <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: '#10b981', width: '99.9%' }}></div>
-                </div>
+        <div className="max-w-[1600px] mx-auto px-8 pt-6">
+          <motion.div 
+            className="flex justify-between items-center mb-6"
+            initial={{ opacity: 0, y: -20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.8, ease: "circOut" }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "linear-gradient(135deg, #10b981, #d1fae5)",
+                  boxShadow: "0 10px 20px rgba(16,185,129,0.15)",
+                }}
+              >
+                <HeartPulse color="#065f46" size={24} />
               </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ color: '#666', fontSize: '0.9rem' }}>Data Sync Status</span>
-                  <span style={{ fontWeight: 'bold', color: '#10b981' }}>Real-time</span>
-                </div>
-                <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: '#10b981', width: '100%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ color: '#666', fontSize: '0.9rem' }}>Average Response Time</span>
-                  <span style={{ fontWeight: 'bold', color: '#3B82F6' }}>245ms</span>
-                </div>
-                <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: '#3B82F6', width: '85%' }}></div>
-                </div>
-              </div>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tighter">VitalsGuard <span className="text-emerald-600">Command</span></h1>
             </div>
+            <motion.div 
+              className="flex gap-4 items-center"
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: false, amount: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <motion.div 
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 systems-live"
+                animate={{ 
+                  boxShadow: ["0 0 0px rgba(59,130,246,0)", "0 0 15px rgba(59,130,246,0.3)", "0 0 0px rgba(59,130,246,0)"]
+                }}
+                transition={{ duration: 2.5, repeat: Infinity }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.7)]"></div>
+                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Systems Live</span>
+              </motion.div>
+              <ShinyButton 
+                variant="pink" 
+                onClick={onLogout}
+                icon={<LogOut className="w-4 h-4" />}
+              >
+                Logout
+              </ShinyButton>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        <main style={{ padding: '0 2rem 2rem', maxWidth: '1600px', margin: '0 auto' }}>
+          
+          {/* Upper Grid: KPIs & Doctor Emergencies */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+            
+            {/* Patient Overview KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+              {[
+                { label: 'TOTAL PATIENTS', value: patients.length, detail: 'Across all wards', color: '#10b981' },
+                { label: 'ACTIVE WARNINGS', value: counts.warning, detail: 'Moderately unstable', color: '#f59e0b' },
+                { label: 'CRITICAL ALERTS', value: counts.critical, detail: 'Immediate action req.', color: '#ef4444' }
+              ].map((kpi, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: false, amount: 0.2 }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(16,185,129,0.15)', boxShadow: '0 10px 30px rgba(15,45,88,0.05)' }}
+                >
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '12px', fontWeight: '800' }}>
+                    {kpi.label}
+                  </div>
+                  <motion.div 
+                    style={{ fontSize: '3rem', fontWeight: '900', color: kpi.color }}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    whileInView={{ scale: 1, opacity: 1 }}
+                    viewport={{ once: false, amount: 0.2 }}
+                    transition={{ duration: 0.6, delay: idx * 0.1 + 0.2 }}
+                  >
+                    {kpi.value}
+                  </motion.div>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '8px' }}>{kpi.detail}</div>
+                </motion.div>
+              ))}
+              
+              {/* Status Dist. Chart */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.2 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                style={{ gridColumn: 'span 3', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(16,185,129,0.15)', boxShadow: '0 10px 30px rgba(15,45,88,0.05)' }}
+              >
+                 <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1rem', fontWeight: '700', color: '#64748b' }}>PATIENT STATUS DISTRIBUTION</h3>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div style={{ flex: 1, height: '220px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie dataKey="value" data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                            {chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {chartData.map((entry, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                          <span style={{ color: COLORS[idx], fontWeight: 'bold' }}>{entry.name}</span>
+                          <span style={{ color: '#475569' }}>{entry.value} Patients</span>
+                        </div>
+                      ))}
+                    </div>
+                 </div>
+              </motion.div>
+            </div>
+
+            {/* Dr. Emergency Dispatch */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: false, amount: 0.2 }}
+              style={{ height: '100%' }}
+            >
+              <BorderRotate
+                animationMode="rotate-on-hover"
+                borderRadius={34}
+                style={{ padding: '2px', height: '100%' }}
+                gradientColors={{ primary: '#10b981', secondary: '#34d399', accent: '#f7a7c0' }}
+              >
+                <div style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(10px)', padding: '2rem', borderRadius: '32px', border: '1px solid rgba(16,185,129,0.15)', boxShadow: '0 20px 40px rgba(16,185,129,0.05)', height: 'calc(100% - 4px)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: '#1e293b' }}>🚨 DOCTOR EMERGENCY DISPATCH</h3>
+                  <motion.div 
+                    style={{ background: '#ef4444', color: 'white', padding: '4px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    {emergencyCalls.length} ACTIVE
+                  </motion.div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <AnimatePresence>
+                    {emergencyCalls.map((call, idx) => (
+                      <motion.div 
+                        key={call.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        whileInView={{ 
+                          opacity: 1, 
+                          x: 0,
+                          backgroundColor: acknowledgingIds.includes(call.id) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(248, 250, 252, 0.8)',
+                        }}
+                        viewport={{ once: false, amount: 0.2 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.4, delay: idx * 0.1 }}
+                        whileHover={{ scale: 1.01 }}
+                        className="grid grid-cols-[1fr_auto] items-center p-4 rounded-2xl border transition-all"
+                        style={{ 
+                          borderLeft: `6px solid ${call.urgency === 'critical' ? '#ef4444' : '#f59e0b'}`,
+                          borderColor: acknowledgingIds.includes(call.id) ? 'rgba(16, 185, 129, 0.4)' : 'rgba(16, 185, 129, 0.1)',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-[#1e293b] text-base leading-tight truncate">{call.doctor}</div>
+                            <div className="text-xs text-slate-500 font-medium my-0.5">
+                              {call.location} • <span style={{ color: call.urgency === 'critical' ? '#ef4444' : '#f59e0b', fontWeight: '800' }}>{call.alert}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <ShinyButton
+                            variant={acknowledgingIds.includes(call.id) ? 'blue' : 'green'}
+                            className="scale-90 h-8 px-3 text-[10px]"
+                            icon={acknowledgingIds.includes(call.id) ? undefined : <Activity className="w-3 h-3" />}
+                            onClick={() => {
+                              setAcknowledgingIds(prev => [...prev, call.id]);
+                              setTimeout(() => {
+                                setEmergencyCalls(prev => prev.filter(c => c.id !== call.id));
+                                setAcknowledgingIds(prev => prev.filter(id => id !== call.id));
+                              }, 1200); 
+                            }}
+                            disabled={acknowledgingIds.includes(call.id)}
+                          >
+                            {acknowledgingIds.includes(call.id) ? 'ACK' : 'RESPOND'}
+                          </ShinyButton>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                <ShinyButton
+                  variant="blue"
+                  className="w-full mt-6 h-10 text-xs"
+                  icon={<Plus className="w-3 h-3" />}
+                >
+                  SIMULATED CALL
+                </ShinyButton>
+                </div>
+              </BorderRotate>
+            </motion.div>
           </div>
-        </div>
 
-        {/* AI Analytics */}
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
-          <h3 style={{ color: '#7C3AED', margin: '0 0 1.5rem 0' }}>🤖 AI Insights & Analytics</h3>
-          <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#666', lineHeight: '1.8' }}>
-            <li>Real-time pattern detection across {patients.length} active patients</li>
-            <li>Predictive health alerts reduced false positives by 34%</li>
-            <li>Average patient recovery time improved by 12% with AI intervention</li>
-            <li>Clinical decision support active for all high-risk cases</li>
-          </ul>
-        </div>
 
-        {/* Action Buttons */}
-        <div style={{ textAlign: 'center' }}>
-          <Link to="/admin/policy" style={{ backgroundColor: '#7C3AED', color: 'white', padding: '0.8rem 2rem', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', display: 'inline-block' }}>
-            🔐 Manage Access & Settings
-          </Link>
-        </div>
-      </main>
+          {/* Infrastructure Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <BorderRotate
+              animationMode="rotate-on-hover"
+              borderRadius={30}
+              style={{ padding: '2px' }}
+              gradientColors={{ primary: '#3b82f6', secondary: '#60a5fa', accent: '#0f2d58' }}
+            >
+              <div style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(10px)', borderRadius: '28px', padding: '2rem', border: '1px solid rgba(15, 45, 88, 0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+              <h3 style={{ margin: '0 0 2rem 0', fontSize: '1.2rem', fontWeight: '900', color: '#0f2d58', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ padding: '8px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)' }}>⚡</span> INFRASTRUCTURE MONITORING
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                
+                {/* Electrical Card */}
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: false, amount: 0.2 }}
+                  style={{ background: 'rgba(255,255,255,0.5)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(16, 185, 129, 0.1)' }}
+                 >
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                     <span style={{ fontWeight: 'bold', color: '#3b82f6', fontSize: '0.8rem' }}>ELECTRICAL</span>
+                     <span style={{ color: '#0f2d58', fontSize: '0.7rem', fontWeight: 'bold' }}>{infra.powerSource}</span>
+                   </div>
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div style={{ textAlign: 'center' }}>
+                         <div style={{ fontSize: '1.6rem', fontWeight: '900' }}>{infra.voltage}V</div>
+                         <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>LINE</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                         <div style={{ fontSize: '1.6rem', fontWeight: '900' }}>{infra.load}%</div>
+                         <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>LOAD</div>
+                      </div>
+                   </div>
+                </motion.div>
+
+                {/* Medical Gas Card */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: false, amount: 0.2 }}
+                  style={{ background: 'rgba(255,255,255,0.5)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(16,185,129,0.1)' }}
+                >
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                     <span style={{ fontWeight: 'bold', color: '#3b82f6', fontSize: '0.8rem' }}>MEDICAL GAS</span>
+                     <span style={{ color: '#10b981', fontSize: '0.7rem', fontWeight: 'bold' }}>STABLE</span>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                     <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{infra.o2Pressure}</div>
+                        <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>O2</div>
+                     </div>
+                     <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{infra.n2oLevel}</div>
+                        <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>N2O</div>
+                     </div>
+                   </div>
+                </motion.div>
+
+                {/* AI suggestion */}
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: false, amount: 0.2 }}
+                  style={{ background: 'rgba(15, 45, 88, 0.05)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(15, 45, 88, 0.2)' }}
+                >
+                   <h4 style={{ margin: '0 0 0.5rem 0', color: '#0f2d58', fontSize: '0.9rem', fontWeight: 'bold' }}>AI RESOURCE SUGGESTION</h4>
+                   <p style={{ fontSize: '0.8rem', color: '#475569', lineHeight: '1.4' }}>
+                     Optimize O2 reserve by 5% for expected Ward C peak.
+                   </p>
+                </motion.div>
+
+              </div>
+              </div>
+            </BorderRotate>
+          </motion.div>
+        </main>
+        <Footer />
+      </div>
+
+      <style>
+        {`
+          @keyframes gradient-rotate {
+            0% { box-shadow: 0 30px 55px rgba(16, 185, 129, 0.05); }
+            50% { box-shadow: 0 40px 70px rgba(16, 185, 129, 0.15); }
+            100% { box-shadow: 0 30px 55px rgba(16, 185, 129, 0.05); }
+          }
+          .gradient-border-component {
+            position: relative;
+            border-radius: var(--border-radius, 20px);
+            overflow: hidden;
+          }
+          .gradient-border-component.gradient-border-auto {
+            animation: gradient-rotate var(--animation-duration) linear infinite;
+          }
+          .gradient-border-component.gradient-border-hover:hover {
+            animation: gradient-rotate var(--animation-duration) linear infinite;
+          }
+          .systems-live {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+          }
+        `}
+      </style>
     </div>
   );
 }

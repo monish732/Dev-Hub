@@ -75,24 +75,6 @@ export default function M1({
                 </ResponsiveContainer>
             </div>
 
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: '2rem', border: `1px solid ${severityScore > 70 ? '#fecaca' : '#e2e8f0'}`, background: severityScore > 70 ? 'linear-gradient(180deg, #fff 0%, #fff1f2 100%)' : '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <h3 style={{ margin: 0, color: '#334155', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>🛡️</span> Real-time Clinical Risk Assessment</h3>
-                        <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>Cross-validated analyzer monitoring multiple vital streams for emergency patterns.</p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>Emergency Risk Level</div>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <span style={{ fontSize: '2.5rem', fontWeight: '900', color: severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981' }}>{severityScore}%</span>
-                            <span style={{ fontSize: '1rem', fontWeight: '700', color: severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981', background: severityScore > 70 ? '#fee2e2' : severityScore > 40 ? '#fffbeb' : '#f0fdf4', padding: '4px 12px', borderRadius: '20px' }}>{severityScore > 70 ? 'CRITICAL' : severityScore > 40 ? 'ELEVATED' : 'NORMAL'}</span>
-                        </div>
-                    </div>
-                </div>
-                <div style={{ width: '100%', height: '12px', background: '#f1f5f9', borderRadius: '6px', marginTop: '1.5rem', overflow: 'hidden' }}>
-                    <div style={{ width: `${severityScore}%`, height: '100%', background: severityScore > 70 ? 'linear-gradient(90deg, #f59e0b, #ef4444)' : severityScore > 40 ? '#f59e0b' : '#10b981', transition: 'width 1.5s ease-in-out', boxShadow: '0 0 8px rgba(0,0,0,0.1)' }} />
-                </div>
-            </div>
 
             <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.5rem 2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '2rem', borderLeft: `6px solid ${trendResult?.trend === 'Deteriorating' ? '#ef4444' : trendResult?.trend === 'Improving' ? '#10b981' : '#7C3AED'}`, display: 'flex', alignItems: 'center', gap: '2rem' }}>
                 <div style={{ width: '60px', height: '60px', borderRadius: '15px', background: trendResult?.trend === 'Deteriorating' ? '#fee2e2' : trendResult?.trend === 'Improving' ? '#ecfdf5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{trendResult?.trend === 'Deteriorating' ? '📉' : trendResult?.trend === 'Improving' ? '📈' : '➡️'}</div>
