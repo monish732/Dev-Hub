@@ -619,7 +619,7 @@ export default function DoctorDashboard({ onLogout }) {
                     }
 
                     .patient-list ul::-webkit-scrollbar-thumb:hover {
-                        background: rgba(47,119,214,0.55);
+                        background: rgba(47,119,214,0.54);
                     }
                 `}
             </style>
