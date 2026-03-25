@@ -219,14 +219,14 @@ app.get('/appointments/doctors', async (req, res) => {
       const slotEnd = new Date(slot.end);
 
       const doctorConflict = doctorAppointments.find((a) => overlaps(slotStart, slotEnd, new Date(a.start), new Date(a.end)));
-      const patientConflict = patientDayAppointments.find((a) => overlaps(slotStart, slotEnd, new Date(a.start), new Date(a.end)));
+      // Note: patientConflict check removed to allow independent doctor booking as requested.
 
       return {
         start: slot.start,
         end: slot.end,
-        available: !doctorConflict && !patientConflict,
-        reason: doctorConflict ? 'booked' : patientConflict ? 'patient-overlap' : null,
-        appointmentId: doctorConflict?.id || patientConflict?.id || null
+        available: !doctorConflict,
+        reason: doctorConflict ? 'booked' : null,
+        appointmentId: doctorConflict?.id || null
       };
     });
 
@@ -299,12 +299,7 @@ app.post('/appointments/book', async (req, res) => {
     return res.status(409).json({ success: false, message: 'This doctor slot is already booked.' });
   }
 
-  const patientConflict = appointmentsStore.find((a) =>
-    String(a.patientId) === String(patientId) && overlaps(slotStart, slotEnd, new Date(a.start), new Date(a.end))
-  );
-  if (patientConflict) {
-    return res.status(409).json({ success: false, message: 'You already have an appointment overlapping this slot.' });
-  }
+  // Note: patientConflict check removed to allow independent doctor booking as requested.
 
   const appointment = {
     id: `apt_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
@@ -322,6 +317,26 @@ app.post('/appointments/book', async (req, res) => {
 
   appointmentsStore.push(appointment);
   return res.json({ success: true, appointment });
+});
+
+app.post('/appointments/clear', async (req, res) => {
+  const { patientId } = req.body;
+
+  if (!patientId) {
+    return res.status(400).json({ success: false, message: 'patientId is required.' });
+  }
+
+  // Remove all appointments for this patient
+  let count = 0;
+  for (let i = appointmentsStore.length - 1; i >= 0; i--) {
+    if (String(appointmentsStore[i].patientId) === String(patientId)) {
+      appointmentsStore.splice(i, 1);
+      count++;
+    }
+  }
+
+  console.log(`[Appointments] Cleared ${count} appointments for patient ${patientId}`);
+  return res.json({ success: true, clearedCount: count });
 });
 
 // ═══════════════════════════════════════════════════

@@ -25,26 +25,31 @@ export default function M1({
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        {healthMetrics.map((metric, idx) => (
-          <div key={idx} style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: metric.status === 'critical' ? '4px solid #ef4444' : metric.status === 'warning' ? '4px solid #f59e0b' : 'none', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{metric.icon}</div>
-            <div style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.5rem' }}>{metric.title}</div>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: metric.status === 'critical' ? '#ef4444' : '#7C3AED', marginBottom: '0.5rem' }}>{metric.value}</div>
-            <div style={{ fontSize: '0.9rem', color: '#666' }}>{metric.unit}</div>
-          </div>
-        ))}
+        {healthMetrics.map((metric, idx) => {
+          const mainColor = metric.title.includes('HEART') ? '#e11d48' : 
+                          metric.title.includes('TEMP') ? '#d97706' :
+                          metric.title.includes('SPO2') ? '#2563eb' : '#0d9488';
+          return (
+            <div key={idx} className="premium-card" style={{ padding: '2rem', borderLeft: metric.status === 'critical' ? '6px solid #ef4444' : metric.status === 'warning' ? '6px solid #f59e0b' : 'none', textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{metric.icon}</div>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '800', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{metric.title}</div>
+              <div style={{ fontSize: '3.5rem', fontWeight: '950', color: mainColor, marginBottom: '0.5rem', lineHeight: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))' }}>{metric.value}</div>
+              <div style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: '700' }}>{metric.unit}</div>
+            </div>
+          );
+        })}
       </div>
 
-      <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
+      <div className="premium-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: 0, color: '#7C3AED', fontSize: '1.3rem' }}>📈 Live Vitals Monitor</h3>
-          <div style={{ display: 'flex', background: '#f8fafc', padding: '4px', borderRadius: '10px', gap: '4px', border: '1px solid #e2e8f0' }}>
+          <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.3rem', fontWeight: '900' }}>📈 Live Vitals Monitor</h3>
+          <div style={{ display: 'flex', background: 'rgba(247,167,192,0.1)', padding: '6px', borderRadius: '12px', gap: '6px', border: '1px solid rgba(247,167,192,0.2)' }}>
             <button
               onClick={() => {
                 setDataGenerationMode('normal');
                 setSpikeStartTime(null);
               }}
-              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', backgroundColor: dataGenerationMode === 'normal' ? '#10b981' : 'transparent', color: dataGenerationMode === 'normal' ? 'white' : '#64748b' }}
+              style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.8rem', backgroundColor: dataGenerationMode === 'normal' ? '#10b981' : 'transparent', color: dataGenerationMode === 'normal' ? 'white' : '#831843', transition: 'all 0.2s' }}
             >
               Normal Baseline
             </button>
@@ -53,7 +58,7 @@ export default function M1({
                 setDataGenerationMode('spike');
                 setSpikeStartTime(Date.now());
               }}
-              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', backgroundColor: dataGenerationMode === 'spike' ? '#ef4444' : 'transparent', color: dataGenerationMode === 'spike' ? 'white' : '#64748b' }}
+              style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.8rem', backgroundColor: dataGenerationMode === 'spike' ? '#ef4444' : 'transparent', color: dataGenerationMode === 'spike' ? 'white' : '#831843', transition: 'all 0.2s' }}
             >
               Trigger Spike
             </button>
@@ -75,17 +80,17 @@ export default function M1({
         </ResponsiveContainer>
       </div>
 
-      <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: '2rem', border: `1px solid ${severityScore > 70 ? '#fecaca' : '#e2e8f0'}`, background: severityScore > 70 ? 'linear-gradient(180deg, #fff 0%, #fff1f2 100%)' : '#fff' }}>
+      <div className="premium-card" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: severityScore > 70 ? '6px solid #ef4444' : 'none', background: severityScore > 70 ? 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(254,226,226,0.6) 100%)' : undefined }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3 style={{ margin: 0, color: '#334155', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>🛡️</span> Real-time Clinical Risk Assessment</h3>
-            <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>Cross-validated analyzer monitoring multiple vital streams for emergency patterns.</p>
+            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '10px' }}><span>🛡️</span> Real-time Clinical Risk Assessment</h3>
+            <p style={{ margin: '0.5rem 0 0 0', color: '#475569', fontSize: '0.95rem', fontWeight: '500' }}>Cross-validated analyzer monitoring multiple vital streams for emergency patterns.</p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>Emergency Risk Level</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <span style={{ fontSize: '2.5rem', fontWeight: '900', color: severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981' }}>{severityScore}%</span>
-              <span style={{ fontSize: '1rem', fontWeight: '700', color: severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981', background: severityScore > 70 ? '#fee2e2' : severityScore > 40 ? '#fffbeb' : '#f0fdf4', padding: '4px 12px', borderRadius: '20px' }}>{severityScore > 70 ? 'CRITICAL' : severityScore > 40 ? 'ELEVATED' : 'NORMAL'}</span>
+            <div style={{ fontSize: '0.7rem', color: '#334155', fontWeight: '900', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.05em' }}>Emergency Risk Level</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', justifyContent: 'flex-end' }}>
+              <span style={{ fontSize: '2.8rem', fontWeight: '950', color: severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981', lineHeight: 1 }}>{severityScore}%</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: '900', color: 'white', background: severityScore > 70 ? '#ef4444' : severityScore > 40 ? '#f59e0b' : '#10b981', padding: '4px 14px', borderRadius: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>{severityScore > 70 ? 'CRITICAL' : severityScore > 40 ? 'ELEVATED' : 'NORMAL'}</span>
             </div>
           </div>
         </div>
@@ -94,10 +99,10 @@ export default function M1({
         </div>
       </div>
 
-      <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.5rem 2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '2rem', borderLeft: `6px solid ${trendResult?.trend === 'Deteriorating' ? '#ef4444' : trendResult?.trend === 'Improving' ? '#10b981' : '#7C3AED'}`, display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <div style={{ width: '60px', height: '60px', borderRadius: '15px', background: trendResult?.trend === 'Deteriorating' ? '#fee2e2' : trendResult?.trend === 'Improving' ? '#ecfdf5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{trendResult?.trend === 'Deteriorating' ? '📉' : trendResult?.trend === 'Improving' ? '📈' : '➡️'}</div>
+      <div className="premium-card" style={{ padding: '1.5rem 2.5rem', marginBottom: '2rem', borderLeft: `8px solid ${trendResult?.trend === 'Deteriorating' ? '#ef4444' : trendResult?.trend === 'Improving' ? '#10b981' : '#be185d'}`, display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        <div style={{ width: '65px', height: '65px', borderRadius: '20px', background: trendResult?.trend === 'Deteriorating' ? '#fee2e2' : trendResult?.trend === 'Improving' ? '#ecfdf5' : 'rgba(255,228,233,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', boxShadow: '0 8px 15px rgba(0,0,0,0.05)' }}>{trendResult?.trend === 'Deteriorating' ? '📉' : trendResult?.trend === 'Improving' ? '📈' : '➡️'}</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>AI Trend Prediction Monitor (Model 03)</div>
+          <div style={{ fontSize: '0.75rem', color: '#334155', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>AI Trend Prediction Monitor (Model 03)</div>
           <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: trendResult?.trend?.toLowerCase() === 'deteriorating' ? '#ef4444' : trendResult?.trend?.toLowerCase() === 'improving' ? '#10b981' : '#1e293b' }}>{trendResult?.trend ? `Patient trajectory is ${trendResult.trend.toLowerCase()}` : 'Analyzing clinical sequence...'}</div>
           {trendExplanation && (
             <div style={{ fontSize: '0.9rem', color: '#475569', marginTop: '10px', padding: '12px 18px', background: '#f8fafc', borderRadius: '10px', borderLeft: '4px solid #7C3AED', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)' }}>

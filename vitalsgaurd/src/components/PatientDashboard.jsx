@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { HeartPulse, User, Stethoscope, Shield, LogOut, Activity, Plus, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { patients } from '../data/mockVitals';
 import DigitalTwin from './DigitalTwin';
@@ -8,6 +11,215 @@ import M1 from './m1';
 
 const API_BASES = ['http://localhost:5000/api', 'http://localhost:8000/api'];
 const NODE_API_BASE = 'http://localhost:5003';
+
+function hexToRgb(hex) {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || "").trim());
+  if (!match) return null;
+  return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)];
+}
+
+function clamp01(n) {
+  return Math.min(1, Math.max(0, n));
+}
+
+function mixRgb(a, b, t) {
+  const tt = clamp01(t);
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * tt),
+    Math.round(a[1] + (b[1] - a[1]) * tt),
+    Math.round(a[2] + (b[2] - a[2]) * tt),
+  ];
+}
+
+function rgbToCss(rgb) {
+  return `${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
+}
+
+function ElegantShape({
+  delay = 0,
+  width = 400,
+  height = 100,
+  rotate = 0,
+  gradient = "linear-gradient(135deg, rgba(247,167,192,0.48), rgba(255,192,203,0.34), rgba(255,255,255,0.24))",
+  style,
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -120, rotate: rotate - 12 }}
+      animate={{ opacity: 1, y: 0, rotate }}
+      transition={{
+        duration: 2,
+        delay,
+        ease: [0.23, 0.86, 0.39, 0.96],
+        opacity: { duration: 1.1 },
+      }}
+      style={{ position: "absolute", ...style }}
+    >
+      <motion.div
+        animate={{ y: [0, 16, 0] }}
+        transition={{ duration: 12, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        style={{ width, height, position: "relative" }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            background: gradient,
+            border: "1.5px solid rgba(255,255,255,0.72)",
+            boxShadow: "0 34px 90px rgba(247,167,192,0.3)",
+            backdropFilter: "blur(10px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            background:
+              "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.56), rgba(255,192,203,0.18) 42%, transparent 70%)",
+          }}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const BorderRotate = ({
+  children,
+  className = '',
+  animationMode = 'auto-rotate',
+  animationSpeed = 8,
+  gradientColors = { primary: '#fbcfe8', secondary: '#fff1f2', accent: '#f9a8d4' },
+  backgroundColor = 'rgba(255, 255, 255, 0.95)',
+  borderWidth = 1.5,
+  borderRadius = 24,
+  style = {},
+  ...props
+}) => {
+  return (
+    <div 
+      className={`border-rotate-wrapper ${className}`} 
+      style={{
+        '--border-width': `${borderWidth}px`,
+        '--border-radius': `${borderRadius}px`,
+        '--animation-duration': `${animationSpeed}s`,
+        '--primary': gradientColors.primary,
+        '--secondary': gradientColors.secondary,
+        '--accent': gradientColors.accent,
+        position: 'relative',
+        borderRadius: `${borderRadius}px`,
+        padding: `${borderWidth}px`,
+        overflow: 'hidden',
+        display: 'flex',
+        ...style
+      }}
+      {...props}
+    >
+      {/* Rotating Border Layer */}
+      <div style={{
+        position: 'absolute',
+        inset: '-100%',
+        background: `conic-gradient(from 0deg, var(--primary), var(--secondary), var(--accent), var(--secondary), var(--primary))`,
+        animation: `rotate-border var(--animation-duration) linear infinite`,
+        zIndex: 0
+      }} />
+      <div style={{ 
+        position: 'relative',
+        background: backgroundColor, 
+        borderRadius: `calc(${borderRadius}px - ${borderWidth}px)`,
+        height: '100%',
+        width: '100%',
+        backdropFilter: 'blur(12px)',
+        zIndex: 1,
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+function MetalButton({
+  children,
+  className,
+  accentRgb = [244, 114, 182],
+  variant = 'primary',
+  active = false,
+  ...props
+}) {
+  const [pressed, setPressed] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const baseColor = `rgb(${accentRgb.join(',')})`;
+  const hi = mixRgb(accentRgb, [255, 255, 255], 0.35);
+  const baseBg = variant === 'primary' 
+    ? `linear-gradient(135deg, rgba(${rgbToCss(hi)}, 1), rgba(${rgbToCss(accentRgb)}, 1))`
+    : 'rgba(255, 255, 255, 0.7)';
+
+  return (
+    <motion.button
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setPressed(false); }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      whileHover={{ scale: 1.02, translateY: -2 }}
+      whileTap={{ scale: 0.98, translateY: 0 }}
+      className={cn("metal-btn", className)}
+      style={{
+        position: 'relative',
+        padding: '12px 24px',
+        borderRadius: '14px',
+        border: variant === 'outline' ? `1px solid rgba(${accentRgb.join(',')}, 0.3)` : 'none',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '10px',
+        fontWeight: '700',
+        color: '#0f172a',
+        boxShadow: hovered 
+          ? `0 10px 25px rgba(${accentRgb.join(',')}, 0.2)` 
+          : `0 4px 12px rgba(0,0,0,0.05)`,
+        background: baseBg,
+        transition: 'background 0.3s ease, box-shadow 0.3s ease',
+        ...props.style
+      }}
+      {...props}
+    >
+      {/* Dynamic Bubble Gradient Layer */}
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 2.5, opacity: 0.3 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "circOut" }}
+            style={{
+              position: 'absolute',
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: `radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(${accentRgb.join(',')}, 0.4) 50%, transparent 100%)`,
+              left: '50%',
+              top: '50%',
+              marginLeft: '-60px',
+              marginTop: '-60px',
+              pointerEvents: 'none',
+              zIndex: 0
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {children}
+      </span>
+    </motion.button>
+  );
+}
 
 async function postJsonWithFallback(urls, payload) {
   let lastError = 'Service is currently unavailable.';
@@ -443,22 +655,31 @@ export default function PatientDashboard({ userId, onLogout }) {
 
     setAppointmentLoading(true);
     setAppointmentError('');
+    setAppointmentSuccess('');
+    setSelectedSlot(null);
+    setAvailableDoctors([]); // Force UI reset for fresh data
 
     try {
       const username = getStoredUsername();
+      const timestamp = Date.now(); // Cache busting
+
+      // Clear existing appointments for this patient as requested
+      await axios.post(`${NODE_API_BASE}/appointments/clear`, { patientId: userId });
+      console.log(`[Appointments] Requested clear for patient ${userId}`);
 
       const [eligibilityRes, doctorsRes, myRes] = await Promise.all([
         axios.get(`${NODE_API_BASE}/appointments/eligibility/${encodeURIComponent(userId)}`, {
-          params: { username }
+          params: { username, _t: timestamp }
         }),
         axios.get(`${NODE_API_BASE}/appointments/doctors`, {
           params: {
             date: appointmentDate,
-            patientId: userId
+            patientId: userId,
+            _t: timestamp
           }
         }),
         axios.get(`${NODE_API_BASE}/appointments/my`, {
-          params: { patientId: userId }
+          params: { patientId: userId, _t: timestamp }
         })
       ]);
 
@@ -698,21 +919,179 @@ export default function PatientDashboard({ userId, onLogout }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f3ff', fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem 2rem', backgroundColor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ fontSize: '24px' }}>💊</div>
-          <h1 style={{ margin: 0, color: '#7C3AED', fontSize: '1.5rem', fontWeight: 'bold' }}>Patient Dashboard</h1>
+    <div style={{ minHeight: '100vh', position: 'relative', overflowX: 'hidden', background: "linear-gradient(135deg, #fff5f7 0%, #fff0f3 34%, #ffe4e9 62%, #fff5f7 100%)", color: '#1e293b', fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        .metal-btn {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 14px;
+          border: 1px solid rgba(var(--accent, 247, 167, 192), 0.45);
+          background: var(--bg);
+          color: var(--text, #ffffff);
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 200ms ease;
+          box-shadow: 0 10px 20px rgba(247, 167, 192, 0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+          overflow: hidden;
+          padding: 0.6rem 1.2rem;
+        }
+        .metal-btn__inner {
+          position: absolute;
+          inset: 1px;
+          border-radius: 13px;
+          background: radial-gradient(circle at 25% 18%, rgba(255,255,255,0.4), transparent 44%), linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0));
+          pointer-events: none;
+        }
+        .metal-btn__shine {
+          position: absolute;
+          inset: -120% -60%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+          transform: rotate(18deg) translateX(-40%);
+          opacity: 0;
+          transition: opacity 240ms ease, transform 650ms ease;
+          pointer-events: none;
+        }
+        .metal-btn:hover .metal-btn__shine {
+          opacity: 1;
+          transform: rotate(18deg) translateX(36%);
+        }
+        .metal-btn__content {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .premium-card {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(12px);
+          border-radius: 24px;
+          border: 1px solid rgba(247, 167, 192, 0.2);
+          box-shadow: 0 10px 30px rgba(131, 24, 67, 0.05);
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .premium-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 15px 35px rgba(131, 24, 67, 0.1);
+        }
+        @keyframes rotate-border {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .border-rotate-wrapper {
+          display: flex;
+          overflow: hidden;
+        }
+        @keyframes border-glow-pulse {
+          0% { box-shadow: 0 0 5px rgba(244, 114, 182, 0.2); }
+          50% { box-shadow: 0 0 15px rgba(244, 114, 182, 0.4); }
+          100% { box-shadow: 0 0 5px rgba(244, 114, 182, 0.2); }
+        }
+        .border-rotate-wrapper {
+          animation: border-glow-pulse 4s ease-in-out infinite;
+        }
+        
+        /* Premium Custom Scrollbars */
+        * {
+          scrollbar-width: thin;
+          scrollbar-color: #f472b6 transparent;
+        }
+
+        ::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: rgba(255, 245, 247, 0.5);
+          border-radius: 20px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #fbcfe8 0%, #f472b6 100%);
+          border-radius: 20px;
+          border: 3px solid rgba(255, 245, 247, 0.8);
+          box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #f472b6 0%, #db2777 100%);
+          cursor: pointer;
+        }
+      `}</style>
+
+      {/* High-Fidelity Geometry Background Layer */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0, pointerEvents: "none" }}>
+        <ElegantShape
+          delay={0.2}
+          width={600}
+          height={140}
+          rotate={12}
+          gradient="linear-gradient(135deg, rgba(247,167,192,0.4), rgba(255,192,203,0.2), rgba(255,255,255,0.1))"
+          style={{ left: "-5%", top: "10%" }}
+        />
+        <ElegantShape
+          delay={0.4}
+          width={400}
+          height={100}
+          rotate={-15}
+          gradient="linear-gradient(135deg, rgba(236,72,153,0.2), rgba(255,255,255,0.1))"
+          style={{ right: "5%", top: "15%" }}
+        />
+        <ElegantShape
+          delay={0.6}
+          width={500}
+          height={120}
+          rotate={-8}
+          gradient="linear-gradient(135deg, rgba(219,39,119,0.15), rgba(255,192,203,0.1))"
+          style={{ left: "10%", bottom: "15%" }}
+        />
+      </div>
+
+      <header style={{ position: "relative", zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.2rem 2.5rem', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(247,167,192,0.2)', position: 'sticky', top: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #fbcfe8, #ffe4e9)', display: 'grid', placeItems: 'center', boxShadow: '0 8px 16px rgba(251,207,232,0.3)' }}>
+            <HeartPulse color="#e11d48" size={24} />
+          </div>
+          <h1 style={{ margin: 0, color: '#334155', fontSize: '1.4rem', fontWeight: '900', letterSpacing: '-0.02em' }}>VitalsGuard <span style={{ color: '#f472b6', fontWeight: '400' }}>Patient</span></h1>
         </div>
-        <nav style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flex: 1 }}>
-          {['Dashboard', 'Interactive Analyzer', 'Report Analysis', 'Appointments', 'Settings'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab.toLowerCase())} style={{ background: 'none', border: 'none', color: activeTab === tab.toLowerCase() ? '#7C3AED' : '#999', cursor: 'pointer', fontSize: '0.95rem', padding: '0.5rem 0', borderBottom: activeTab === tab.toLowerCase() ? '2px solid #7C3AED' : 'none', transition: 'all 0.3s' }}>{tab}</button>
+        <nav style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flex: 1 }}>
+          {['Dashboard', 'Interactive Analyzer', 'Report Analysis', 'Appointments'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab.toLowerCase())}
+              style={{
+                background: activeTab === tab.toLowerCase() ? '#4f46e5' : 'transparent',
+                border: 'none',
+                color: activeTab === tab.toLowerCase() ? 'white' : '#64748b',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: '800',
+                padding: '0.5rem 1.2rem',
+                borderRadius: '12px',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: activeTab === tab.toLowerCase() ? '0 4px 12px rgba(79, 70, 229, 0.2)' : 'none',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em'
+              }}
+            >
+              {tab}
+            </button>
           ))}
         </nav>
-        <button onClick={onLogout} style={{ padding: '0.6rem 1.2rem', backgroundColor: '#7C3AED', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Logout</button>
+        <MetalButton 
+          onClick={onLogout} 
+          accentRgb={[225, 29, 72]}
+          style={{ height: '40px', borderRadius: '10px', color: '#0f172a' }}
+        >
+          <LogOut size={16} /> Logout
+        </MetalButton>
       </header>
 
-      <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      <main style={{ position: "relative", zIndex: 1, padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
         {/* ==================== MAIN DASHBOARD ==================== */}
         {activeTab === 'dashboard' ? (
           <>
@@ -1067,38 +1446,38 @@ export default function PatientDashboard({ userId, onLogout }) {
 
               {agentScanResult && (
                 <>
-                  <div className="ai-debate" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
-                    <h3 style={{ color: '#7C3AED', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
-                      <span>⚖️</span> Debate AI Response
+                  <div className="ai-debate" style={{ background: 'rgba(255, 255, 255, 0.4)', borderRadius: '24px', padding: '2rem', border: '1px solid #ffe4e9', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+                    <h3 style={{ color: '#1e293b', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.25rem', fontWeight: '900' }}>
+                      <span style={{ fontSize: '1.5rem' }}>⚖️</span> Clinical Debate Intelligence
                     </h3>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                       {[
-                        { key: 'monitoring', icon: '📈', color: '#38bdf8', label: 'Monitoring Agent', bg: '#eff6ff', text: agentScanResult.debate?.monitoring_view },
-                        { key: 'diagnosis', icon: '🩺', color: '#f472b6', label: 'Diagnosis Agent', bg: '#fdf2f8', text: agentScanResult.debate?.diagnosis_view },
-                        { key: 'debate', icon: '⚖️', color: '#c084fc', label: 'Debate Coordinator', bg: '#faf5ff', text: `Consensus reached (Disagreement score: ${agentScanResult.disagreement_score}/10)\n${agentScanResult.debate?.consensus || agentScanResult.consensus}` },
-                        { key: 'explanation', icon: '🗣️', color: '#fbbf24', label: 'Explanation Agent', bg: '#fefce8', text: agentScanResult.explanation?.voice_summary || agentScanResult.voice_summary },
-                        { key: 'actions', icon: '⚡', color: '#22c55e', label: 'Action Agent', bg: '#f0fdf4', text: (agentScanResult.actions || []).map((a, i) => `${i + 1}. ${a}`).join('\n') },
-                        { key: 'emergency', icon: '🚨', color: '#ef4444', label: 'Emergency Agent', bg: '#fef2f2', text: `Urgency: ${agentScanResult.emergency?.urgency_note}\nDispatch Alert: ${agentScanResult.emergency?.dispatch_alert ? 'YES ⚠️' : 'NO ✓'}` },
+                        { key: 'monitoring', icon: '📡', color: '#0ea5e9', label: 'Vitals Monitor', bg: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '#bae6fd', text: agentScanResult.debate?.monitoring_view },
+                        { key: 'diagnosis', icon: '🔬', color: '#db2777', label: 'Diagnostic Lab', bg: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)', border: '#fbcfe8', text: agentScanResult.debate?.diagnosis_view },
+                        { key: 'debate', icon: '🤝', color: '#7c3aed', label: 'Consensus Coordinator', bg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '#ddd6fe', text: `Agreement reached (Disagreement score: ${agentScanResult.disagreement_score}/10)\n${agentScanResult.debate?.consensus || agentScanResult.consensus}` },
+                        { key: 'explanation', icon: '💬', color: '#d97706', label: 'Clinical Liaison', bg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', border: '#fde68a', text: agentScanResult.explanation?.voice_summary || agentScanResult.voice_summary },
+                        { key: 'actions', icon: '🎯', color: '#059669', label: 'Action Protocol', bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '#bbf7d0', text: (agentScanResult.actions || []).map((a, i) => `${i + 1}. ${a}`).join('\n') },
+                        { key: 'emergency', icon: '🚨', color: '#dc2626', label: 'Emergency Override', bg: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)', border: '#fecaca', text: `Severity Assessment: ${agentScanResult.emergency?.urgency_note}\nImmediate Dispatch: ${agentScanResult.emergency?.dispatch_alert ? 'REQUIRED 🔔' : 'NOT REQUIRED ✅'}` },
                       ].filter(item => item.text).map(item => (
-                        <div key={item.key} style={{ background: item.bg, padding: '1rem 1.2rem', borderRadius: '12px', borderLeft: `4px solid ${item.color}` }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '1.2rem' }}>{item.icon}</span>
-                            <strong style={{ color: item.color, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        <div key={item.key} style={{ background: item.bg, padding: '1.5rem', borderRadius: '20px', border: `1px solid ${item.border}`, boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                            <span style={{ fontSize: '1.4rem' }}>{item.icon}</span>
+                            <strong style={{ color: item.color, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '900' }}>
                               {item.label}
                             </strong>
                           </div>
-                          <p style={{ color: '#374151', margin: 0, fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                          <p style={{ color: '#0f172a', margin: 0, fontSize: '0.98rem', lineHeight: 1.7, whiteSpace: 'pre-line', fontWeight: '500' }}>
                             {item.text}
                           </p>
                         </div>
                       ))}
                     </div>
 
-                    <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b', gap: '1rem', flexWrap: 'wrap' }}>
-                      <span>Disagreement Score: <strong style={{ color: '#c084fc' }}>{agentScanResult.disagreement_score}/10</strong></span>
-                      <span>EWS: <strong style={{ color: agentScanResult.ews?.colour || '#22c55e' }}>{agentScanResult.ews?.level?.toUpperCase()}</strong></span>
-                      <span>Emergency Override: <strong style={{ color: agentScanResult.emergency?.dispatch_alert ? '#ef4444' : '#22c55e' }}>{agentScanResult.emergency?.dispatch_alert ? 'YES' : 'NO'}</strong></span>
+                    <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #ffe4e9', display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#475569', gap: '1rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: '700' }}>Disagreement Level: <strong style={{ color: '#7c3aed' }}>{agentScanResult.disagreement_score}/10</strong></span>
+                      <span style={{ fontWeight: '700' }}>EWS Signature: <strong style={{ color: agentScanResult.ews?.colour || '#22c55e' }}>{agentScanResult.ews?.level?.toUpperCase()}</strong></span>
+                      <span style={{ fontWeight: '700' }}>Emergency Alert: <strong style={{ color: agentScanResult.emergency?.dispatch_alert ? '#ef4444' : '#059669' }}>{agentScanResult.emergency?.dispatch_alert ? 'CRITICAL' : 'STABLE'}</strong></span>
                     </div>
                   </div>
                 </>
@@ -1170,14 +1549,14 @@ export default function PatientDashboard({ userId, onLogout }) {
                   <span>🤖</span> AI Analysis Summary
                 </h3>
                 {agentScanResult ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <div style={{ padding: '1rem', background: '#f0fdf4', borderLeft: '4px solid #22c55e', borderRadius: '8px' }}>
-                      <div style={{ fontWeight: '800', color: '#166534', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Consensus</div>
-                      <p style={{ margin: 0, color: '#374151', fontSize: '0.9rem', lineHeight: 1.5 }}>{agentScanResult.debate?.consensus || agentScanResult.consensus}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', borderRadius: '20px', border: '1px solid #bcf1cc', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.05)' }}>
+                      <div style={{ fontWeight: '900', color: '#166534', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '0.05em' }}>🥗 Consensus Analysis</div>
+                      <p style={{ margin: 0, color: '#0f172a', fontSize: '1rem', lineHeight: 1.6, fontWeight: '500' }}>{agentScanResult.debate?.consensus || agentScanResult.consensus}</p>
                     </div>
-                    <div style={{ padding: '1rem', background: '#fffbeb', borderLeft: '4px solid #fbbf24', borderRadius: '8px' }}>
-                      <div style={{ fontWeight: '800', color: '#92400e', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Diagnosis</div>
-                      <p style={{ margin: 0, color: '#374151', fontSize: '0.9rem', lineHeight: 1.5 }}>{agentScanResult.debate?.diagnosis_view}</p>
+                    <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', borderRadius: '20px', border: '1px solid #fde68a', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.05)' }}>
+                      <div style={{ fontWeight: '900', color: '#92400e', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '0.05em' }}>🩺 Clinical Diagnosis</div>
+                      <p style={{ margin: 0, color: '#0f172a', fontSize: '1rem', lineHeight: 1.6, fontWeight: '500' }}>{agentScanResult.debate?.diagnosis_view}</p>
                     </div>
                   </div>
                 ) : (
@@ -1190,29 +1569,38 @@ export default function PatientDashboard({ userId, onLogout }) {
 
             {/* Bottom: Insight Correlation Results */}
             {reportResult ? (
-              <div className="premium-card" style={{ padding: '2rem', border: '2px solid #c084fc' }}>
-                <h3 style={{ margin: '0 0 1.5rem 0', color: '#7C3AED', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BorderRotate 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              style={{ border: '2px solid #be185d' }}
+            >
+              <div className="premium-card" style={{ padding: '2rem' }}>
+                <h3 style={{ margin: '0 0 1.5rem 0', color: '#334155', fontSize: '1.25rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span>🧠</span> Insight Correlation
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '2.5rem', alignItems: 'center' }}>
-                  <div style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #a855f7 100%)', padding: '2rem', borderRadius: '16px', color: 'white', textAlign: 'center', boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', opacity: 0.9, marginBottom: '0.5rem' }}>Match Score</div>
-                    <div style={{ fontSize: '4rem', fontWeight: '900', lineHeight: 1 }}>{reportResult.correlation_score}%</div>
+                  <div style={{ background: 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)', padding: '2.5rem', borderRadius: '32px', color: 'white', textAlign: 'center', boxShadow: '0 15px 35px rgba(219, 39, 119, 0.25)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: '950', textTransform: 'uppercase', opacity: 1, marginBottom: '0.8rem', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.9)' }}>Correlation Score</div>
+                    <div style={{ fontSize: '4.5rem', fontWeight: '950', lineHeight: 1, textShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>{reportResult.correlation_score}%</div>
                   </div>
                   <div>
-                    <p style={{ margin: 0, color: '#334155', fontSize: '1.1rem', fontWeight: '600', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                      {reportResult.summary}
-                    </p>
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.6)', padding: '1.5rem', borderRadius: '24px', border: '1px solid #ffe4e9', marginBottom: '1.5rem' }}>
+                      <p style={{ margin: 0, color: '#0f172a', fontSize: '1.15rem', fontWeight: '600', lineHeight: 1.7 }}>
+                        {reportResult.summary}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
                       {reportResult.insights && reportResult.insights.map((insight, idx) => (
-                        <div key={idx} style={{ background: '#f1f5f9', padding: '0.6rem 1rem', borderRadius: '999px', fontSize: '0.85rem', color: '#475569', fontWeight: '700', border: '1px solid #e2e8f0' }}>
-                          🔍 {insight}
+                        <div key={idx} style={{ background: 'white', padding: '0.7rem 1.2rem', borderRadius: '16px', fontSize: '0.85rem', color: '#334155', fontWeight: '800', border: '1px solid #ffe4e9', boxShadow: '0 4px 10px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '1.1rem' }}>🔬</span> {insight}
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
               </div>
+            </BorderRotate>
             ) : (
               <div className="premium-card" style={{ padding: '3rem', textAlign: 'center', background: '#f8fafc', border: '1px dashed #cbd5e1' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}>🧠</div>
@@ -1222,31 +1610,33 @@ export default function PatientDashboard({ userId, onLogout }) {
           </div>
         ) : activeTab === 'appointments' ? (
           <>
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 1rem 0', color: '#7C3AED', fontSize: '1.25rem' }}>📅 Appointments</h3>
-              <p style={{ margin: '0 0 1rem 0', color: '#64748b', fontSize: '0.92rem' }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '1.5rem', border: '1px solid #ffe4e9', boxShadow: '0 10px 30px rgba(0,0,0,0.02)', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#0f172a', fontSize: '1.25rem', fontWeight: '900' }}>📅 Appointments Scheduler</h3>
+              <p style={{ margin: '0 0 1rem 0', color: '#0f172a', fontSize: '0.92rem', fontWeight: '500' }}>
                 Booking is enabled only after discharge confirmation. Each slot is 20 minutes, and overlapping appointments are blocked automatically.
               </p>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <label style={{ color: '#334155', fontWeight: 600, fontSize: '0.9rem' }}>Select Date</label>
-                <input
-                  type="date"
-                  value={appointmentDate}
-                  onChange={(e) => {
-                    setAppointmentDate(e.target.value);
-                    setSelectedSlot(null);
-                    setAppointmentError('');
-                    setAppointmentSuccess('');
-                  }}
-                  style={{ padding: '0.55rem 0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                />
-                <button
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                  <label style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.9rem' }}>Select Date</label>
+                  <input
+                    type="date"
+                    value={appointmentDate}
+                    onChange={(e) => {
+                      setAppointmentDate(e.target.value);
+                      setSelectedSlot(null);
+                      setAppointmentError('');
+                      setAppointmentSuccess('');
+                    }}
+                    style={{ padding: '0.6rem 0.8rem', borderRadius: '10px', border: '1px solid #ffe4e9', fontSize: '0.9rem', color: '#000000', backgroundColor: '#fff5f7', fontWeight: '800' }}
+                  />
+                </div>
+                <MetalButton
                   onClick={refreshAppointmentData}
-                  style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: 'none', backgroundColor: '#7C3AED', color: '#fff', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ height: '42px', padding: '0 1.5rem', backgroundColor: '#fbcfe8', color: '#000000', fontWeight: '900' }}
                 >
                   Refresh Slots
-                </button>
+                </MetalButton>
               </div>
             </div>
 
@@ -1271,9 +1661,15 @@ export default function PatientDashboard({ userId, onLogout }) {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                <h4 style={{ margin: '0 0 1rem 0', color: '#7C3AED', fontSize: '1.05rem' }}>Doctor Slot Timing</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2.5rem' }}>
+            <BorderRotate 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              style={{ marginBottom: '2.5rem' }}
+            >
+              <div style={{ padding: '2rem' }}>
+                <h4 style={{ margin: '0 0 1.5rem 0', color: '#0f172a', fontSize: '1.2rem', fontWeight: '900' }}>Doctor Slot Timing</h4>
 
                 {appointmentLoading ? (
                   <p style={{ color: '#64748b' }}>Loading slots...</p>
@@ -1284,8 +1680,8 @@ export default function PatientDashboard({ userId, onLogout }) {
                     {availableDoctors.map((doctor) => (
                       <div key={doctor.id} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
                         <div style={{ marginBottom: '0.8rem' }}>
-                          <div style={{ fontWeight: 700, color: '#1e293b' }}>{doctor.name}</div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{doctor.specialty}</div>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem' }}>{doctor.name}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: '600' }}>{doctor.specialty}</div>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.6rem' }}>
@@ -1293,9 +1689,11 @@ export default function PatientDashboard({ userId, onLogout }) {
                             const isSelected = selectedSlot && selectedSlot.doctorId === doctor.id && selectedSlot.start === slot.start;
                             const isDisabled = !appointmentEligibility.discharged || !slot.available;
                             return (
-                              <button
+                              <MetalButton
                                 key={`${doctor.id}-${slot.start}`}
                                 disabled={isDisabled}
+                                active={isSelected}
+                                variant={isSelected ? "primary" : "outline"}
                                 onClick={() => {
                                   setSelectedSlot({
                                     doctorId: doctor.id,
@@ -1308,19 +1706,21 @@ export default function PatientDashboard({ userId, onLogout }) {
                                   setAppointmentSuccess('');
                                 }}
                                 style={{
-                                  borderRadius: '8px',
-                                  border: isSelected ? '2px solid #7C3AED' : '1px solid #cbd5e1',
-                                  backgroundColor: isSelected ? '#f3e8ff' : slot.available ? '#fff' : '#f1f5f9',
-                                  color: slot.available ? '#1e293b' : '#94a3b8',
-                                  padding: '0.55rem 0.45rem',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 600,
+                                  fontSize: '0.85rem',
+                                  height: '36px',
+                                  padding: '0 0.5rem',
+                                  opacity: isDisabled ? 0.6 : 1,
+                                  color: isSelected ? '#4f46e5' : (isDisabled ? '#94a3b8' : '#000000'), 
+                                  fontWeight: isSelected ? '950' : '700', 
+                                  backgroundColor: isSelected ? '#eef2ff' : (isDisabled ? '#f1f5f9' : 'white'), 
+                                  border: isSelected ? '2px solid #4f46e5' : (isDisabled ? '1px solid #e2e8f0' : '1px solid #ffe4e9'),
+                                  boxShadow: isSelected ? '0 0 15px rgba(79, 70, 229, 0.15)' : 'none',
                                   cursor: isDisabled ? 'not-allowed' : 'pointer'
                                 }}
                                 title={slot.available ? 'Available' : (slot.reason === 'patient-overlap' ? 'Conflicts with your existing appointment' : 'Already booked')}
                               >
                                 {formatSlotTime(slot.start)}
-                              </button>
+                              </MetalButton>
                             );
                           })}
                         </div>
@@ -1329,67 +1729,87 @@ export default function PatientDashboard({ userId, onLogout }) {
                   </div>
                 )}
               </div>
+            </BorderRotate>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                  <h4 style={{ margin: '0 0 0.8rem 0', color: '#7C3AED', fontSize: '1rem' }}>Selected Slot</h4>
+                <div className="premium-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#334155', fontSize: '1.1rem', fontWeight: '900' }}>Selected Slot</h4>
                   {selectedSlot ? (
-                    <>
-                      <p style={{ margin: '0.2rem 0', color: '#1e293b', fontWeight: 700 }}>{selectedSlot.doctorName}</p>
-                      <p style={{ margin: '0.2rem 0', color: '#64748b', fontSize: '0.85rem' }}>{selectedSlot.specialty}</p>
-                      <p style={{ margin: '0.2rem 0', color: '#334155', fontSize: '0.85rem' }}>
-                        {new Date(selectedSlot.start).toLocaleDateString()} • {formatSlotTime(selectedSlot.start)} - {formatSlotTime(selectedSlot.end)}
+                    <div className="premium-card" style={{ padding: '1rem', background: 'rgba(247,167,192,0.05)', borderRadius: '16px', borderStyle: 'dashed' }}>
+                      <p style={{ margin: '0', color: '#334155', fontWeight: '900', fontSize: '1rem' }}>{selectedSlot.doctorName}</p>
+                      <p style={{ margin: '0.2rem 0', color: '#334155', fontSize: '0.85rem', fontWeight: '600' }}>{selectedSlot.specialty}</p>
+                      <p style={{ margin: '0.4rem 0 0', color: '#444', fontSize: '0.85rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.4rem' }}>
+                        📅 {new Date(selectedSlot.start).toLocaleDateString()} • {formatSlotTime(selectedSlot.start)}
                       </p>
-                    </>
+                    </div>
                   ) : (
-                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.88rem' }}>Pick an available 20-minute slot.</p>
+                    <div style={{ padding: '1.5rem', border: '2px dashed #ffe4e9', borderRadius: '16px', textAlign: 'center' }}>
+                      <p style={{ margin: 0, color: '#334155', fontSize: '0.88rem', fontWeight: '500' }}>Pick an available 20-minute slot.</p>
+                    </div>
                   )}
 
-                  <button
-                    onClick={handleBookAppointment}
+                  <MetalButton
+                    className="metal-btn--block"
                     disabled={!selectedSlot || !appointmentEligibility.discharged || appointmentLoading}
-                    style={{
-                      width: '100%',
-                      marginTop: '0.9rem',
-                      padding: '0.65rem 0.8rem',
-                      borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: (!selectedSlot || !appointmentEligibility.discharged || appointmentLoading) ? '#cbd5e1' : '#7C3AED',
-                      color: '#fff',
-                      fontWeight: 700,
-                      cursor: (!selectedSlot || !appointmentEligibility.discharged || appointmentLoading) ? 'not-allowed' : 'pointer'
+                    onClick={handleBookAppointment}
+                    accentRgb={[190, 24, 93]}
+                    style={{ 
+                      marginTop: '1.5rem', 
+                      height: '48px', 
+                      backgroundColor: '#be185d', 
+                      color: '#ffffff', 
+                      fontWeight: '900' 
                     }}
                   >
-                    Book Appointment
-                  </button>
+                    Confirm Booking
+                  </MetalButton>
                 </div>
 
-                <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                  <h4 style={{ margin: '0 0 0.8rem 0', color: '#7C3AED', fontSize: '1rem' }}>My Appointments</h4>
+                <div className="premium-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a', fontSize: '1.1rem', fontWeight: '900' }}>My Appointments</h4>
                   {!myAppointments.length ? (
-                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.88rem' }}>No appointments booked yet.</p>
+                    <p style={{ color: '#64748b', fontSize: '0.9rem' }}>No active bookings found.</p>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', maxHeight: '320px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {myAppointments.map((appt) => (
-                        <div key={appt.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.7rem' }}>
-                          <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>{appt.doctorName}</div>
-                          <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>{appt.specialty}</div>
-                          <div style={{ color: '#334155', fontSize: '0.8rem' }}>
-                            {new Date(appt.start).toLocaleDateString()} • {formatSlotTime(appt.start)} - {formatSlotTime(appt.end)}
+                        <div key={appt.id} style={{ border: '1px solid #ffe4e9', borderRadius: '10px', padding: '0.85rem', background: '#fff5f7' }}>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>{appt.doctorName}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: '600' }}>
+                            📅 {new Date(appt.start).toLocaleDateString()} • {formatSlotTime(appt.start)}
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+
+                {/* New: Available Doctor List Container */}
+                <div className="premium-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a', fontSize: '1.1rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>👨‍⚕️</span> Available Specialists
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {availableDoctors.slice(0, 4).map(doctor => (
+                      <div key={doctor.id} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#fbcfe8', display: 'grid', placeItems: 'center', color: '#be185d', fontWeight: '900', fontSize: '0.8rem' }}>
+                          {doctor.name[0]}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#0f172a' }}>{doctor.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>{doctor.specialty}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </>
         ) : (
-          <div style={{ padding: '4rem', textAlign: 'center', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏗️</div>
-            <h2 style={{ color: '#7C3AED' }}>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Module</h2>
-            <p style={{ color: '#666' }}>This section is currently under development to bring you a better care experience.</p>
+          <div className="premium-card" style={{ padding: '4rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '3.5rem', marginBottom: '1.5rem', filter: 'drop-shadow(0 10px 15px rgba(131,24,67,0.1))' }}>🏗️</div>
+            <h2 style={{ color: '#334155', fontWeight: '900' }}>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Module</h2>
+            <p style={{ color: '#334155', fontSize: '1.1rem' }}>This section is currently under development to bring you a better care experience.</p>
           </div>
         )}
       </main>
