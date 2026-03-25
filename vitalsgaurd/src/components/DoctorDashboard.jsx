@@ -247,8 +247,8 @@ export default function DoctorDashboard({ onLogout }) {
                                     marginBottom: '0.55rem',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s',
-                                    border: p.id === activePatientId ? '2px solid #ef4444' : '1px solid #d9e8fb',
-                                    backgroundColor: p.id === activePatientId ? '#fff1f2' : '#fff',
+                                    border: p.id === activePatientId ? '2px solid #2f77d6' : '1px solid #d9e8fb',
+                                    backgroundColor: p.id === activePatientId ? '#eef6ff' : '#fff',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: '0.5rem'
@@ -403,7 +403,7 @@ export default function DoctorDashboard({ onLogout }) {
                                 disabled={!!activeAlerts[activePatient.id]}
                                 variant={activeAlerts[activePatient.id] ? 'white' : 'pink'}
                                 icon={<AlertTriangle className="w-4 h-4" />}
-                                className="w-full h-11 text-[11px] uppercase tracking-[0.08em]"
+                                className={`w-full h-11 text-[11px] uppercase tracking-[0.08em] ${activeAlerts[activePatient.id] ? '' : 'text-red-600 hover:text-red-600'}`}
                             >
                                 {activeAlerts[activePatient.id] ? (
                                     <>
