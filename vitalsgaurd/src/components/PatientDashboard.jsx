@@ -1184,13 +1184,6 @@ export default function PatientDashboard({ userId, onLogout }) {
               </div>
             </div>
 
-            {/* Digital Twin Visualization */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem', border: '2px solid #e9d5ff' }}>
-              <h3 style={{ margin: '0 0 1rem 0', color: '#7C3AED', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🧬</span> Interactive Digital Twin
-              </h3>
-              <DigitalTwin scanData={digitalTwinData} isScanning={agentScanLoading} />
-            </div>
 
             {/* ML Results */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
@@ -1393,6 +1386,14 @@ export default function PatientDashboard({ userId, onLogout }) {
               )}
             </div>
 
+            {/* Digital Twin Visualization */}
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem', border: '2px solid #e9d5ff' }}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#7C3AED', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🧬</span> Interactive Digital Twin
+              </h3>
+              <DigitalTwin scanData={digitalTwinData} isScanning={agentScanLoading} />
+            </div>
+
             {/* Phidata Agent-Debate AI Scan - same style as Doctor Dashboard */}
             <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -1491,29 +1492,31 @@ export default function PatientDashboard({ userId, onLogout }) {
                 </h3>
                 <p style={{ color: '#666', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Upload high-resolution report images for AI comparison.</p>
                 
-                <div style={{ 
-                  border: '2px dashed #cbd5e1', 
-                  borderRadius: '16px', 
-                  padding: '2rem', 
-                  backgroundColor: '#f8fafc',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.3s'
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files[0];
-                  if (file) handleReportUpload({ target: { files: [file] } });
-                }}
-                onClick={() => document.getElementById('report-upload-input').click()}
-                >
-                  <input id="report-upload-input" type="file" accept="image/*" onChange={handleReportUpload} style={{ display: 'none' }} />
-                  <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📤</div>
-                  <div style={{ fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>
-                    {reportFileName ? reportFileName : 'Click to Upload Report'}
+                {!reportImage && (
+                  <div style={{ 
+                    border: '2px dashed #cbd5e1', 
+                    borderRadius: '16px', 
+                    padding: '2rem', 
+                    backgroundColor: '#f8fafc',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.3s'
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files[0];
+                    if (file) handleReportUpload({ target: { files: [file] } });
+                  }}
+                  onClick={() => document.getElementById('report-upload-input').click()}
+                  >
+                    <input id="report-upload-input" type="file" accept="image/*" onChange={handleReportUpload} style={{ display: 'none' }} />
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📤</div>
+                    <div style={{ fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>
+                      {reportFileName ? reportFileName : 'Click to Upload Report'}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {reportImage && (
                   <div style={{ marginTop: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
