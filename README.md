@@ -31,7 +31,14 @@ This project goes beyond simple monitoring. It acts as a **Virtual Health Compan
 - **Behavior-Aware Prediction:** Incorporates sleep, stress, and activity levels.
 
 ### 6. Health Data Marketplace (Blockchain)
-- Optional ethical data sharing where users can provide anonymized data to researchers and earn simulated tokens.
+- Users can opt-in to share anonymized health vitals with researchers/institutions and earn cryptocurrency or platform tokens for contributing to AI/ML research datasets.
+
+**Key Benefits:**
+
+* **For Patients:** Passive income, contribute to medical research
+* **For Researchers:** Access diverse, verified health datasets without privacy concerns
+* **For Platform:** Revenue from data licensing, research partnerships
+
 
 ## 🛠 Tech Stack
 - **Backend:** Python (FastAPI/Flask)
